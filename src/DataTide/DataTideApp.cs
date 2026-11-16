@@ -74,13 +74,13 @@ sealed class DataTideApp : ApplicationContext
         if (Headless) return;
 
         tray.MouseClick += (_, e) => { if (e.Button == MouseButtons.Left) ToggleFlyout(); };
-        widget.Clicked += () => { hoverTip.Hide(); ToggleFlyout(); };
+        widget.Clicked += () => { hoverTip.Cancel(); ToggleFlyout(); };
         widget.HoverChanged += over =>
         {
             if (!over) { hoverTip.Cancel(); return; }
             if (flyout?.Visible == true) return;
             RefreshTotals();
-            hoverTip.ShowSoon(this, widget.ScreenBounds);
+            hoverTip.ShowSoon(this, widget.ScreenBounds, () => flyout?.Visible == true);
         };
         widget.RightClicked += () =>
         {

@@ -11,6 +11,7 @@ sealed class HoverTip : Form
     readonly System.Windows.Forms.Timer delay = new() { Interval = 450 };
     DataTideApp? app;
     Rectangle? anchor;
+    Func<bool>? suppressed;
     bool dark;
 
     public HoverTip()
@@ -39,10 +40,12 @@ sealed class HoverTip : Form
     float S => DeviceDpi / 96f;
     int Px(float v) => (int)Math.Round(v * S);
 
-    public void ShowSoon(DataTideApp owner, Rectangle? widget)
+    /// <param name="suppress">Checked again when the delay ends: the card must never cover or close the open flyout.</param>
+    public void ShowSoon(DataTideApp owner, Rectangle? widget, Func<bool>? suppress = null)
     {
         app = owner;
         anchor = widget;
+        suppressed = suppress;
         delay.Stop();
         delay.Start();
     }
@@ -67,7 +70,7 @@ sealed class HoverTip : Form
 
     void ShowNow()
     {
-        if (app == null || anchor is not { } a) return;
+        if (app == null || anchor is not { } a || suppressed?.Invoke() == true) return;
         dark = Native.SystemDark();
         RightToLeft = L.Ar ? RightToLeft.Yes : RightToLeft.No;
         BackColor = new Theme(dark).Surface;
@@ -76,7 +79,9 @@ sealed class HoverTip : Form
         int x = Math.Clamp(a.Left + a.Width / 2 - Width / 2, wa.Left + Px(6), wa.Right - Width - Px(6));
         Location = new Point(x, wa.Bottom - Height - Px(8));
         Invalidate();
-        Show();
+        // SW_SHOWNOACTIVATE: appear without taking focus, so whatever is active stays active.
+        Native.ShowWindow(Handle, 4);
+        Visible = true;
         Native.RoundCorners(Handle, dark);
     }
 
