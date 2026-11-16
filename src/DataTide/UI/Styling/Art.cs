@@ -21,6 +21,29 @@ static class Art
         new System.Drawing.Text.InstalledFontCollection().Families.Any(f => f.Name == "Segoe Fluent Icons")
             ? "Segoe Fluent Icons" : "Segoe MDL2 Assets";
 
+    /// <summary>
+    /// Draws an icon-font glyph centred on its real shape inside <paramref name="box"/>. Icon-font glyphs
+    /// (the "more" dots, the plus) sit off-centre inside their text box, so centring the box looks lopsided.
+    /// </summary>
+    public static void GlyphCentered(Graphics g, string glyph, float emPixels, RectangleF box, Color c)
+    {
+        using var path = new GraphicsPath();
+        using var family = new FontFamily(IconFontName);
+        path.AddString(glyph, family, (int)FontStyle.Regular, emPixels, PointF.Empty, StringFormat.GenericTypographic);
+        var b = path.GetBounds();
+        if (b.Width <= 0 || b.Height <= 0) return;
+        using (var m = new Matrix())
+        {
+            m.Translate(box.Left + (box.Width - b.Width) / 2f - b.Left, box.Top + (box.Height - b.Height) / 2f - b.Top);
+            path.Transform(m);
+        }
+        var old = g.SmoothingMode;
+        g.SmoothingMode = SmoothingMode.AntiAlias;
+        using var brush = new SolidBrush(c);
+        g.FillPath(brush, path);
+        g.SmoothingMode = old;
+    }
+
     public static GraphicsPath RoundRect(RectangleF r, float rad)
     {
         var p = new GraphicsPath();

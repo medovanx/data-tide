@@ -42,6 +42,14 @@ sealed class IconButton : Control
             if (!Primary) { using var pen = new Pen(Theme.Border); g.DrawPath(pen, p); }
         }
 
+        if (Text.Length == 0 && Glyph.Length > 0)
+        {
+            // Icon only: center the glyph's real shape. Icon-font glyphs (like the "more" dots) sit off-centre
+            // inside their text box, so centring the box leaves them low and to one side.
+            Art.GlyphCentered(g, Glyph, (Font.SizeInPoints + 1.5f) * DeviceDpi / 72f, new RectangleF(0, 0, Width, Height), fg);
+            return;
+        }
+
         bool rtl = RightToLeft == RightToLeft.Yes;
         using var fIcon = new Font(Art.IconFontName, Font.SizeInPoints + 1.5f);
         var flags = TextFormatFlags.NoPadding | TextFormatFlags.SingleLine | (rtl ? TextFormatFlags.RightToLeft : 0);

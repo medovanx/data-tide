@@ -142,8 +142,7 @@ sealed class LiveList : Control
             {
                 var ab = new Rectangle(X(nameW + speedW * 2 + Px(3), Px(24)), y + (rr.Height - Px(24)) / 2, Px(24), Px(24));
                 if (ab.Contains(hoverPt)) Art.FillRound(g, ab, Px(5), Color.FromArgb(t.Dark ? 50 : 30, t.Accent));
-                using var fi = new Font(Art.IconFontName, 8.5f);
-                TextRenderer.DrawText(g, Art.IconAdd, fi, ab, t.Accent, TextFormatFlags.HorizontalCenter | TextFormatFlags.VerticalCenter);
+                Art.GlyphCentered(g, Art.IconAdd, 11 * S, ab, t.Accent);
                 addButtons[ab] = row.ExePath;
             }
             y += RowH;
