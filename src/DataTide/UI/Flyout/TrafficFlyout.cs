@@ -215,12 +215,22 @@ sealed class TrafficFlyout : Form
         using var fName = new Font("Segoe UI Semibold", 10.5f);
         using var fBig = new Font("Segoe UI Semibold", 17f);
         using var fLabel = new Font("Segoe UI", 8.5f);
-        int markS = Px(22);
-        var markR = new Rectangle(rtl ? Width - pad - markS : pad, Px(14), markS, markS);
-        Art.Mark(g, markR, simple: true);
-        var nameR = rtl ? new Rectangle(pad, Px(12), markR.Left - pad - Px(8), Px(26)) : new Rectangle(markR.Right + Px(8), Px(12), Width - markR.Right - pad - Px(8), Px(26));
+        // Brand on the start side (mark and app name, like Salaty Reminder's card), the interface as a pill on the far side.
+        int markS = Px(28);
+        var markR = new Rectangle(rtl ? Width - pad - markS : pad, Px(10), markS, markS);
+        Art.Mark(g, markR);
+        using var fBrand = new Font("Segoe UI Semibold", 11.5f);
         string auto = app.S.InterfaceId == AppSettings.AutoInterface ? $" ({L.T("Auto")})" : "";
-        TextRenderer.DrawText(g, app.ShownInterfaceName + auto, fName, nameR, Color.White, near | TextFormatFlags.VerticalCenter | TextFormatFlags.EndEllipsis);
+        string iface = app.ShownInterfaceName + auto;
+        Size ps = TextRenderer.MeasureText(iface, fSmall);
+        int pillW = Math.Min(ps.Width + Px(18), Width / 2 - pad);
+        var pillR = new Rectangle(rtl ? pad : Width - pad - pillW, markR.Top + (markS - Px(22)) / 2, pillW, Px(22));
+        Art.FillRound(g, pillR, Px(11), Color.FromArgb(46, 255, 255, 255));
+        TextRenderer.DrawText(g, iface, fSmall, Rectangle.Inflate(pillR, -Px(8), 0), Color.White,
+            TextFormatFlags.HorizontalCenter | TextFormatFlags.VerticalCenter | TextFormatFlags.EndEllipsis | (rtl ? TextFormatFlags.RightToLeft : 0));
+        int brandW = Width - pad * 2 - markS - Px(8) - pillW - Px(8);
+        var brandR = rtl ? new Rectangle(markR.Left - Px(8) - brandW, markR.Top, brandW, markS) : new Rectangle(markR.Right + Px(8), markR.Top, brandW, markS);
+        TextRenderer.DrawText(g, L.T("AppName"), fBrand, brandR, Color.White, near | TextFormatFlags.VerticalCenter | TextFormatFlags.EndEllipsis);
 
         int half = (Width - pad * 2) / 2;
         void Speed(int col, bool up, string label, string value, Color c)

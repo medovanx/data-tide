@@ -142,6 +142,8 @@ public static class L
         ["Updates"] = ("Updates", "التحديثات"),
         ["AutoCheck"] = ("Check for updates automatically", "التحقق من التحديثات تلقائيًا"),
         ["AutoInstall"] = ("Install updates automatically", "تثبيت التحديثات تلقائيًا"),
+        ["GitHubRepo"] = ("GitHub page", "صفحة GitHub"),
+        ["ReleaseNotes"] = ("Release notes", "ملاحظات الإصدار"),
         ["CheckNow"] = ("Check now", "تحقق الآن"),
         ["Version"] = ("Version {0}", "الإصدار {0}"),
         ["UpToDate"] = ("You're on the latest version ({0}).", "لديك أحدث إصدار ({0})."),

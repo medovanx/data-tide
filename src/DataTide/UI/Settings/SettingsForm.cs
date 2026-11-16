@@ -42,6 +42,7 @@ sealed class SettingsForm : Form
     // Updates
     readonly ToggleSwitch tglAutoCheck = new(), tglAutoInstall = new();
     readonly Button btnCheck = new() { AutoSize = true, Height = 30 };
+    readonly IconButton btnGitHub = new() { Width = 150, Height = 32, Glyph = Art.IconOpen }, btnNotes = new() { Width = 150, Height = 32, Glyph = Art.IconDocument };
     readonly Label lblUpdate = new() { AutoSize = true, Tag = "dim", MaximumSize = new Size(440, 0) };
 
     readonly Button btnSave = new() { Size = new Size(110, 34) }, btnCancel = new() { Size = new Size(110, 34) };
@@ -364,7 +365,13 @@ sealed class SettingsForm : Form
             version,
             Row(L.T("AutoCheck"), tglAutoCheck),
             Row(L.T("AutoInstall"), tglAutoInstall),
-            Flow(btnCheck, lblUpdate)));
+            Flow(btnCheck, lblUpdate),
+            Flow(btnGitHub, btnNotes)));
+        btnGitHub.Text = L.T("GitHubRepo");
+        btnNotes.Text = L.T("ReleaseNotes");
+        btnGitHub.Click += (_, _) => Updater.OpenPage(Updater.RepoPage);
+        btnNotes.Click += (_, _) => Updater.OpenPage(Updater.ReleasesPage);
+        tip.SetToolTip(btnGitHub, Updater.RepoPage);
         tglAutoCheck.CheckedChanged += (_, _) => SyncEnabled();
         btnCheck.Click += async (_, _) =>
         {

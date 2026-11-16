@@ -14,6 +14,7 @@ public static class Updater
     public const string Repo = "medovanx/data-tide";
     public const string AssetName = "DataTide.exe";
     public static string ReleasesPage => $"https://github.com/{Repo}/releases";
+    public static string RepoPage => $"https://github.com/{Repo}";
 
     public sealed record Release(Version Version, string Tag, string PageUrl, string AssetUrl, string? Sha256);
 
