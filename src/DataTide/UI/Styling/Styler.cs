@@ -25,12 +25,15 @@ static class Styler
                     b.Cursor = Cursors.Hand;
                     break;
                 case Label l when l.Tag as string == "keep":
-                    l.BackColor = Color.Transparent; break;
+                    // Keeps its own colours; only a default background becomes transparent (pills keep their tint).
+                    if (l.BackColor == SystemColors.Control) l.BackColor = Color.Transparent;
+                    break;
                 case Label l:
                     l.ForeColor = l.Tag as string == "dim" ? t.Dim : t.Text; l.BackColor = Color.Transparent; break;
                 case ToggleSwitch ts: ts.Theme = t; break;
                 case ThemedCombo tc: tc.Theme = t; break;
                 case ArrowGlyph ag: ag.Theme = t; break;
+                case LiveList ll: ll.Theme = t; break;
                 case ThemedNumber tn: tn.Theme = t; break;
                 case ThemedText tt: tt.Theme = t; break;
                 case Segmented sg: sg.Theme = t; break;

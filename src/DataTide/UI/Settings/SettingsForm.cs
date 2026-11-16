@@ -32,9 +32,11 @@ sealed class SettingsForm : Form
     readonly Button btnAddProc = new() { AutoSize = true, Height = 30 }, btnBrowse = new() { AutoSize = true, Height = 30 }, btnDriver = new() { AutoSize = true, Height = 30 }, btnDriverPage = new() { AutoSize = true, Height = 30 };
     readonly Label lblDriverProgress = new() { AutoSize = true, Tag = "dim", MaximumSize = new Size(490, 0), Margin = new Padding(0, 6, 0, 0) };
     readonly Label lblDriver = new() { AutoSize = true, MaximumSize = new Size(490, 0), Margin = new Padding(0, 0, 0, 8) };
+    readonly Segmented segUnits = new("KB/s", "MB/s", "Mb/s") { Width = 210 };
+    Control driverCard = null!;
     readonly Label lblLimits = new() { AutoSize = true, Tag = "dim", MaximumSize = new Size(490, 0), Margin = new Padding(0, 6, 0, 0) };
-    readonly Label lblLive = new() { AutoSize = true, Tag = "dim", MaximumSize = new Size(490, 0) };
-    readonly FlowLayoutPanel livePanel = new() { FlowDirection = FlowDirection.TopDown, WrapContents = false, AutoSize = true, Margin = Padding.Empty };
+    readonly LiveList liveList = new() { Margin = new Padding(0, 0, 0, 4) };
+    readonly Dictionary<string, string> friendly = new(StringComparer.OrdinalIgnoreCase);
     readonly List<string> procPaths = [];
     readonly System.Windows.Forms.Timer liveTimer = new() { Interval = 1500 };
     // Updates
@@ -213,15 +215,28 @@ sealed class SettingsForm : Form
         tglLimits.CheckedChanged += (_, _) => SyncEnabled();
 
         var how = new Label { Text = L.T("LimitsNote"), AutoSize = true, MaximumSize = new Size(490, 0), Tag = "dim", Margin = new Padding(0, 0, 0, 8) };
-        var driverCard = Card(L.T("Driver"), Art.IconShield, lblDriver, how, Flow(btnDriver, btnDriverPage), lblDriverProgress);
+        driverCard = Card(L.T("Driver"), Art.IconShield, lblDriver, how, Flow(btnDriver, btnDriverPage), lblDriverProgress);
+        segUnits.Selected = Array.IndexOf(RateUnits.All, s.LimitUnit) is var ui and >= 0 ? ui : 0;
+        segUnits.SelectedChanged += (_, _) =>
+        {
+            s.LimitUnit = RateUnits.All[segUnits.Selected];
+            foreach (var r in rulesPanel.Controls.OfType<LimitRow>()) r.SetUnit(s.LimitUnit);
+        };
+        var addRow = Flow(cmbProcs, btnAddProc, btnBrowse);
+        addRow.Margin = new Padding(0, 10, 0, 4);
         var rulesCard = Card(L.T("SpeedLimits"), Art.IconSpeed,
             Row(L.T("EnableLimits"), tglLimits),
+            Row(L.T("LimitUnits"), segUnits),
             rulesPanel,
-            Stacked(L.T("AddProgram"), Flow(cmbProcs, btnAddProc, btnBrowse)),
+            addRow,
             lblLimits);
-        var liveCard = Card(L.T("LiveByProgram"), Art.IconChart, lblLive, livePanel);
-        if (LimiterClient.DriverInstalled) AddPage(Art.IconSpeed, L.T("Limits"), rulesCard, liveCard, driverCard);
-        else AddPage(Art.IconSpeed, L.T("Limits"), driverCard, rulesCard, liveCard); // what's missing comes first
+        liveList.Theme = t;
+        liveList.RightToLeft = RightToLeft;
+        liveList.AddRequested += AddRule;
+        liveList.Show([], null, false, L.T("LiveOff"), app.Rate);
+        var liveCard = Card(L.T("LiveByProgram"), Art.IconChart, liveList);
+        // The driver card is only there while the driver is missing, and then it comes first.
+        AddPage(Art.IconSpeed, L.T("Limits"), driverCard, rulesCard, liveCard);
         UpdateDriverText();
     }
 
@@ -232,6 +247,7 @@ sealed class SettingsForm : Form
         lblDriver.ForeColor = ok ? t.Accent : t.Up;
         lblDriver.Tag = "keep";
         btnDriver.Visible = btnDriverPage.Visible = !ok;
+        if (driverCard != null) driverCard.Visible = !ok;
     }
 
     void FillProcesses()
@@ -274,6 +290,12 @@ sealed class SettingsForm : Form
         if (cmbProcs.Items.Count > 0) cmbProcs.SelectedIndex = 0;
     }
 
+    string NameOf(string path)
+    {
+        if (!friendly.TryGetValue(path, out var n)) friendly[path] = n = FriendlyName(path);
+        return n;
+    }
+
     /// <summary>The program's own description ("Google Chrome") when it has one, else its file name.</summary>
     static string FriendlyName(string path)
     {
@@ -298,7 +320,7 @@ sealed class SettingsForm : Form
 
     void AddRuleRow(LimitRule rule)
     {
-        var row = new LimitRow(rule, t, tip) { RightToLeft = RightToLeft };
+        var row = new LimitRow(rule, t, tip, s.LimitUnit) { RightToLeft = RightToLeft };
         row.Removed += r =>
         {
             s.Limits.Remove(r.Rule);
@@ -314,24 +336,22 @@ sealed class SettingsForm : Form
         if (!pages[LimitsPage].page.Visible) return;
         if (!LimiterClient.HelperRunning)
         {
-            lblLive.Text = LimiterClient.DriverInstalled ? L.T("LiveOff") : L.T("DriverMissing");
-            if (livePanel.Controls.Count > 0) livePanel.Controls.Clear();
+            liveList.Show([], null, false, LimiterClient.DriverInstalled ? L.T("LiveOff") : L.T("DriverMissing"), app.Rate);
             return;
         }
         var st = await LimiterClient.StatusAsync();
-        if (st == null) { lblLive.Text = L.T("LimiterUnreachable"); return; }
-        lblLive.Text = st.Error ?? L.T("LiveNote");
-        var top = st.Processes.OrderByDescending(p => p.DownBytesPerSecond + p.UpBytesPerSecond).Take(8).ToList();
-        livePanel.SuspendLayout();
-        livePanel.Controls.Clear();
-        foreach (var p in top)
-        {
-            var text = $"{Path.GetFileNameWithoutExtension(p.ExePath)}    \u2193 {app.Rate(p.DownBytesPerSecond)}    \u2191 {app.Rate(p.UpBytesPerSecond)}";
-            var lbl = new Label { Text = text, AutoSize = true, Margin = new Padding(0, 4, 0, 4), ForeColor = t.Text, BackColor = Color.Transparent };
-            tip.SetToolTip(lbl, p.ExePath);
-            livePanel.Controls.Add(lbl);
-        }
-        livePanel.ResumeLayout();
+        if (st == null) { liveList.Show([], L.T("LimiterUnreachable"), true, null, app.Rate); return; }
+        // One row per program: busy ones first, plus anything a rule covers even while it is quiet.
+        var rows = st.Processes
+            .GroupBy(p => p.ExePath, StringComparer.OrdinalIgnoreCase)
+            .Select(gp => (path: gp.Key, down: gp.Sum(p => p.DownBytesPerSecond), up: gp.Sum(p => p.UpBytesPerSecond)))
+            .Select(x => (x.path, x.down, x.up, rule: s.Limits.FirstOrDefault(r => r.Enabled && string.Equals(r.ExePath, x.path, StringComparison.OrdinalIgnoreCase))))
+            .Where(x => x.down + x.up > 0 || x.rule != null)
+            .OrderByDescending(x => x.down + x.up).Take(8)
+            .Select(x => new LiveList.Row(x.path, NameOf(x.path), x.down, x.up,
+                x.rule == null ? null : x.rule.Block ? L.T("ModeBlock") : L.T("ModeLimit")))
+            .ToList();
+        liveList.Show(rows, st.Error, st.Error != null, L.T("LiveQuiet"), app.Rate);
     }
 
     void BuildUpdates()
@@ -361,9 +381,9 @@ sealed class SettingsForm : Form
         cmbKeep.Enabled = numKeep.Enabled = tglVirtual.Enabled = tglLog.Checked;
         keepCustomRow.Visible = cmbKeep.SelectedIndex == KeepOptions.Length;
         int active = s.Limits.Count(r => r.Enabled);
-        lblLimits.Text = !LimiterClient.DriverInstalled ? L.T("DriverMissing")
-                       : s.Limits.Count == 0 ? L.T("NoRules")
-                       : tglLimits.Checked ? L.T("LimitsSaveNote") : L.T("LimitsOffNote");
+        // Only say something when it helps: no programs yet.
+        lblLimits.Text = s.Limits.Count == 0 && LimiterClient.DriverInstalled ? L.T("NoRules") : "";
+        lblLimits.Visible = lblLimits.Text.Length > 0;
     }
 
     void Save()

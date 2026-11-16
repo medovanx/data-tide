@@ -10,10 +10,12 @@ public sealed class LimitRule
     public long DownBytesPerSecond { get; set; }
     public long UpBytesPerSecond { get; set; }
     public bool Enabled { get; set; } = true;
+    /// <summary>Cut the program off completely: every packet it sends or receives is dropped.</summary>
+    public bool Block { get; set; }
 
     public string Name => Path.GetFileNameWithoutExtension(ExePath);
 
-    public bool Limits(Direction d) => Enabled && (d == Direction.Download ? DownBytesPerSecond : UpBytesPerSecond) > 0;
+    public bool Limits(Direction d) => Enabled && (Block || (d == Direction.Download ? DownBytesPerSecond : UpBytesPerSecond) > 0);
 
     public long RateFor(Direction d) => d == Direction.Download ? DownBytesPerSecond : UpBytesPerSecond;
 

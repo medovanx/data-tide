@@ -126,7 +126,7 @@ sealed unsafe class LimiterEngine : IDisposable
         double now = Now;
         wake.Reset();
         TakeRules(now);
-        bool limiting = shaper.Limited().Count > 0;
+        bool limiting = shaper.Limited().Count > 0 || blocked.Count > 0;
         if (limiting && (tunnelled.Count == 0 || now - lastScan >= AdapterRescanSeconds)) ScanAdapters(now);
         else if (!limiting && tunnelled.Count > 0) Untunnel();
 
@@ -144,6 +144,9 @@ sealed unsafe class LimiterEngine : IDisposable
         return due is double d ? Math.Clamp((int)Math.Ceiling(d * 1000), 1, 250) : 250;
     }
 
+    /// <summary>Programs cut off completely (normalised exe paths): their packets are dropped, never queued.</summary>
+    readonly HashSet<string> blocked = new(StringComparer.OrdinalIgnoreCase);
+
     void TakeRules(double now)
     {
         List<LimitRule>? rules;
@@ -160,9 +163,20 @@ sealed unsafe class LimiterEngine : IDisposable
 
         foreach (var (key, dir) in shaper.Limited())
             if (!wanted.TryGetValue(key, out var r) || !r.Limits(dir)) Forward(shaper.SetLimit(key, dir, 0, now));
+        blocked.Clear();
         foreach (var (path, r) in wanted)
+        {
+            if (r.Block)
+            {
+                blocked.Add(path);
+                // A program switched from limited to blocked: release what it had waiting, the block takes over.
+                foreach (var dir in (ReadOnlySpan<Direction>)[Direction.Download, Direction.Upload])
+                    Forward(shaper.SetLimit(path, dir, 0, now));
+                continue;
+            }
             foreach (var dir in (ReadOnlySpan<Direction>)[Direction.Download, Direction.Upload])
                 if (r.Limits(dir)) shaper.SetLimit(path, dir, r.RateFor(dir), now);
+        }
         FlushSends();
     }
 
@@ -303,6 +317,12 @@ sealed unsafe class LimiterEngine : IDisposable
             return;
         }
         meter.Add(owner.Path, dir, len, now);
+        if (blocked.Count > 0 && blocked.Contains(owner.Key))
+        {
+            meter.Drop(owner.Path, len);
+            pool!.Return(p);
+            return;
+        }
         switch (shaper.Offer(owner.Key, dir, p, len, now))
         {
             case ShapeDecision.Pass:

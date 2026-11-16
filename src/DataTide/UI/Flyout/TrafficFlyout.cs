@@ -63,7 +63,7 @@ sealed class TrafficFlyout : Form
             .OrderByDescending(d => d.Total).Take(MaxRows).ToList();
     }
 
-    int ContentHeight(int rows) => HeaderH + 14 + GraphH + 18 + 26 + 34 + Math.Max(1, rows) * RowH + 34 + 16 + 34 + 16;
+    int ContentHeight(int rows) => HeaderH + 14 + GraphH + 18 + 26 + 34 + Math.Max(1, rows) * RowH + 4 + 28 + 10 + 34 + 16;
 
     public void ShowNear(Rectangle anchor)
     {
@@ -124,7 +124,7 @@ sealed class TrafficFlyout : Form
     protected override bool ShowWithoutActivation => app.Headless;
 
     /// <summary>Top of the speed limits line: just above the buttons.</summary>
-    int LimitsLineY => Height - Px(96);
+    int LimitsLineY => Height - Px(88);
 
     void SyncToggle()
     {
@@ -159,7 +159,7 @@ sealed class TrafficFlyout : Form
         var order = L.Ar ? new[] { btnSettings, btnLimits, btnReport } : [btnReport, btnLimits, btnSettings];
         for (int i = 0; i < 3; i++) order[i].Bounds = new Rectangle(pad + i * (bw + gap), by, bw, bh);
         var ts = new Size(Px(44), Px(22));
-        tglLimits.Bounds = new Rectangle(L.Ar ? pad : Width - pad - ts.Width, LimitsLineY + (Px(24) - ts.Height) / 2, ts.Width, ts.Height);
+        tglLimits.Bounds = new Rectangle(L.Ar ? pad : Width - pad - ts.Width, LimitsLineY + (Px(28) - ts.Height) / 2, ts.Width, ts.Height);
         tglLimits.RightToLeft = L.Ar ? RightToLeft.Yes : RightToLeft.No;
     }
 
@@ -287,14 +287,14 @@ sealed class TrafficFlyout : Form
         y = LimitsLineY;
         int limitedCount = app.S.Limits.Count(l => l.Enabled && (l.DownBytesPerSecond > 0 || l.UpBytesPerSecond > 0));
         string lim = !app.S.LimitsEnabled || limitedCount == 0 ? L.T("LimitsOff")
-                   : LimiterClient.HelperRunning ? L.F("LimitsOn", limitedCount) : L.T("LimitsPaused");
+                   : LimiterClient.HelperRunning ? L.F(limitedCount == 1 ? "LimitsOnOne" : "LimitsOn", limitedCount) : L.T("LimitsPaused");
         Color limC = app.S.LimitsEnabled && LimiterClient.HelperRunning && limitedCount > 0 ? t.Up : t.Dim;
-        using var fIcon = new Font(Art.IconFontName, 9f);
-        int iconW = Px(18);
-        var ir = new Rectangle(rtl ? Width - pad - iconW : pad, y, iconW, Px(24));
+        using var fIcon = new Font(Art.IconFontName, 13f);
+        int iconW = Px(24);
+        var ir = new Rectangle(rtl ? Width - pad - iconW : pad, y, iconW, Px(28));
         TextRenderer.DrawText(g, Art.IconSpeed, fIcon, ir, limC, TextFormatFlags.HorizontalCenter | TextFormatFlags.VerticalCenter);
         int toggleW = Px(54);
-        var lr2 = rtl ? new Rectangle(pad + toggleW, y, Width - pad * 2 - iconW - Px(6) - toggleW, Px(24)) : new Rectangle(pad + iconW + Px(6), y, Width - pad * 2 - iconW - Px(6) - toggleW, Px(24));
+        var lr2 = rtl ? new Rectangle(pad + toggleW, y, Width - pad * 2 - iconW - Px(6) - toggleW, Px(28)) : new Rectangle(pad + iconW + Px(6), y, Width - pad * 2 - iconW - Px(6) - toggleW, Px(28));
         TextRenderer.DrawText(g, lim, fSmall, lr2, limC, near | TextFormatFlags.VerticalCenter | TextFormatFlags.EndEllipsis);
     }
 

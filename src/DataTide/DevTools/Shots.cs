@@ -22,6 +22,7 @@ static class Shots
             app.Demo(DemoData.Interfaces[0], DemoData.Minute());
 
             WidgetStrip(Path.Combine(dir, $"widget-{lang}.png"), app.Rate(app.Up), app.Rate(app.Down), lang == "ar");
+            WidgetStrip(Path.Combine(dir, $"widget-limited-{lang}.png"), app.Rate(app.Up), app.Rate(app.Down), lang == "ar", limited: true);
             app.RefreshTotals();
             var tip = new HoverTip();
             tip.ShowForShot(app, true);
@@ -66,11 +67,11 @@ static class Shots
     }
 
     /// <summary>The widget on a dark taskbar-coloured strip, at 150% scale for a crisp README image.</summary>
-    static void WidgetStrip(string path, string up, string down, bool rtl)
+    static void WidgetStrip(string path, string up, string down, bool rtl, bool limited = false)
     {
         const float s = 1.5f;
         int h = (int)(48 * s);
-        using var widget = TaskbarWidget.Paint(up, down, false, rtl, false, true, s, h);
+        using var widget = TaskbarWidget.Paint(up, down, false, rtl, limited, true, s, h);
         using var strip = new Bitmap(widget.Width + (int)(40 * s), h);
         using (var g = Graphics.FromImage(strip))
         {

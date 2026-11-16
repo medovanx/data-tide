@@ -32,6 +32,8 @@ public sealed class AppSettings
 
     public bool LimitsEnabled { get; set; }
     public List<LimitRule> Limits { get; set; } = [];
+    /// <summary>Unit the Limits page shows speeds in; limits are stored in bytes per second either way.</summary>
+    public RateUnit LimitUnit { get; set; } = RateUnit.KBps;
 
     public bool AutoCheckUpdates { get; set; } = true;
     public bool AutoInstallUpdates { get; set; } = true;

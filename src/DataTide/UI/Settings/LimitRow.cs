@@ -1,103 +1,113 @@
 namespace DataTide.UI.Settings;
 
 /// <summary>
-/// One program's limits in the Limits page. First line: icon, name, on/off, remove. Second line: download and
-/// upload caps, each with its own unit (0 = no cap). Third line: the exe path.
+/// One program in the Limits page, on a single line: icon and name, download and upload limits in the list's
+/// unit (0 = no limit), and a menu for the rarer actions (block completely, pause, remove).
+/// A blocked or paused program shows a pill instead of the numbers. The exe path is the name's tooltip.
 /// </summary>
 sealed class LimitRow : TableLayoutPanel
 {
     public LimitRule Rule { get; }
-    readonly ToggleSwitch tgl = new();
-    readonly IconButton btnRemove = new() { Width = 32, Height = 30, Glyph = Art.IconDelete };
     public event Action<LimitRow>? Removed;
 
-    public LimitRow(LimitRule rule, Theme t, ToolTip tip)
+    readonly Theme t;
+    readonly ThemedNumber numDown = new() { Minimum = 0, Maximum = 1_000_000, Width = 112 };
+    readonly ThemedNumber numUp = new() { Minimum = 0, Maximum = 1_000_000, Width = 112 };
+    readonly FlowLayoutPanel limits = new() { AutoSize = true, WrapContents = false, Margin = Padding.Empty, Anchor = AnchorStyles.Right };
+    readonly Label pill = new() { AutoSize = true, Tag = "keep", Font = new Font("Segoe UI Semibold", 8.5f), Padding = new Padding(10, 3, 10, 3), Anchor = AnchorStyles.Right, Margin = new Padding(0, 0, 4, 0) };
+    readonly Label name = new() { AutoSize = true, Tag = "keep", Font = new Font("Segoe UI Semibold", 9.75f), Margin = Padding.Empty, AutoEllipsis = true, MaximumSize = new Size(170, 0) };
+    readonly IconButton btnMore = new() { Width = 32, Height = 30, Glyph = "" };
+    RateUnit unit;
+    bool loading;
+
+    public LimitRow(LimitRule rule, Theme theme, ToolTip tip, RateUnit listUnit)
     {
         Rule = rule;
+        t = theme;
         ColumnCount = 3;
-        RowCount = 3;
+        RowCount = 1;
         Width = 494;
-        Height = 104;
-        Margin = new Padding(0, 0, 0, 10);
+        Height = 40;
+        Margin = new Padding(0, 0, 0, 2);
         ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
         ColumnStyles.Add(new ColumnStyle(SizeType.AutoSize));
         ColumnStyles.Add(new ColumnStyle(SizeType.AutoSize));
 
-        // Program icon and name side by side.
-        var name = new FlowLayoutPanel { AutoSize = true, WrapContents = false, Anchor = AnchorStyles.Left, Margin = new Padding(0, 6, 0, 0) };
-        name.Controls.Add(new PictureBox
+        var left = new FlowLayoutPanel { AutoSize = true, WrapContents = false, Anchor = AnchorStyles.Left, Margin = Padding.Empty };
+        left.Controls.Add(new PictureBox
         {
-            Size = new Size(16, 16), SizeMode = PictureBoxSizeMode.Zoom, Margin = new Padding(0, 2, 6, 0),
+            Size = new Size(16, 16), SizeMode = PictureBoxSizeMode.Zoom, Margin = new Padding(0, 1, 8, 0),
             Image = ProgramIcons.For(rule.ExePath), BackColor = Color.Transparent,
         });
-        name.Controls.Add(new Label { Text = rule.Name, AutoSize = true, Font = new Font("Segoe UI Semibold", 9.75f), Margin = Padding.Empty });
+        name.Text = rule.Name;
+        left.Controls.Add(name);
+        tip.SetToolTip(name, rule.ExePath);
 
-        var limits = new FlowLayoutPanel { AutoSize = true, WrapContents = false, Anchor = AnchorStyles.Left, Margin = new Padding(0, 2, 0, 0) };
-        limits.Controls.Add(Limit(Direction.Download, t, tip));
-        limits.Controls.Add(new Panel { Width = 18, Height = 1, Margin = Padding.Empty });
-        limits.Controls.Add(Limit(Direction.Upload, t, tip));
+        limits.Controls.Add(new ArrowGlyph { Up = false, Theme = theme, Margin = new Padding(0, 0, 3, 0) });
+        limits.Controls.Add(numDown);
+        limits.Controls.Add(new ArrowGlyph { Up = true, Theme = theme, Margin = new Padding(12, 0, 3, 0) });
+        limits.Controls.Add(numUp);
+        numDown.Margin = numUp.Margin = Padding.Empty;
+        tip.SetToolTip(numDown, L.T("DownLimitTip"));
+        tip.SetToolTip(numUp, L.T("UpLimitTip"));
 
-        var path = new Label { Text = rule.ExePath, AutoEllipsis = true, Tag = "dim", Width = 470, Height = 18, Anchor = AnchorStyles.Left, Font = new Font("Segoe UI", 8f) };
-        tip.SetToolTip(path, rule.ExePath);
+        var right = new FlowLayoutPanel { AutoSize = true, WrapContents = false, Anchor = AnchorStyles.Right, Margin = Padding.Empty };
+        right.Controls.Add(limits);
+        right.Controls.Add(pill);
+        Controls.Add(left, 0, 0);
+        Controls.Add(right, 1, 0);
+        Controls.Add(btnMore, 2, 0);
+        btnMore.Anchor = AnchorStyles.Right;
+        btnMore.Margin = new Padding(8, 0, 0, 0);
+        tip.SetToolTip(btnMore, L.T("MoreOptions"));
 
-        tgl.Checked = rule.Enabled;
-        tgl.Anchor = btnRemove.Anchor = AnchorStyles.None;
-        tgl.Margin = new Padding(8, 0, 6, 0);
-
-        Controls.Add(name, 0, 0);
-        Controls.Add(tgl, 1, 0);
-        Controls.Add(btnRemove, 2, 0);
-        Controls.Add(limits, 0, 1);
-        SetColumnSpan(limits, 3);
-        Controls.Add(path, 0, 2);
-        SetColumnSpan(path, 3);
-
-        tgl.CheckedChanged += (_, _) => Rule.Enabled = tgl.Checked;
-        btnRemove.Click += (_, _) => Removed?.Invoke(this);
-        tip.SetToolTip(tgl, L.T("RuleOnTip"));
-        tip.SetToolTip(btnRemove, L.T("Remove"));
+        SetUnit(listUnit);
+        numDown.ValueChanged += (_, _) => { if (!loading) Rule.DownBytesPerSecond = RateUnits.ToBytes(numDown.Value, unit); };
+        numUp.ValueChanged += (_, _) => { if (!loading) Rule.UpBytesPerSecond = RateUnits.ToBytes(numUp.Value, unit); };
+        btnMore.Click += (_, _) => ShowMenu();
+        SyncState();
     }
 
-    /// <summary>Arrow, number and unit for one direction; the rule always keeps bytes per second.</summary>
-    FlowLayoutPanel Limit(Direction dir, Theme t, ToolTip tip)
+    /// <summary>Shows the limits in another unit; the stored speeds don't change.</summary>
+    public void SetUnit(RateUnit u)
     {
-        long bytes = Rule.RateFor(dir);
-        var unit = RateUnits.Natural(bytes);
-        var num = new ThemedNumber { Minimum = 0, Maximum = 1_000_000, Width = 118 };
-        var cmb = new ThemedCombo { Width = 82 };
-        foreach (var u in RateUnits.All) cmb.Items.Add(RateUnits.Label(u));
-
-        void Configure(RateUnit u)
+        unit = u;
+        loading = true;
+        foreach (var n in new[] { numDown, numUp })
         {
-            num.DecimalPlaces = u == RateUnit.KBps ? 0 : 1;
-            num.Increment = u == RateUnit.KBps ? 64 : u == RateUnit.MBps ? 0.5m : 1;
+            n.DecimalPlaces = u == RateUnit.KBps ? 0 : 1;
+            n.Increment = u == RateUnit.KBps ? 64 : u == RateUnit.MBps ? 0.5m : 1;
         }
-        Configure(unit);
-        num.Value = RateUnits.FromBytes(bytes, unit);
-        cmb.SelectedIndex = Array.IndexOf(RateUnits.All, unit);
+        numDown.Value = RateUnits.FromBytes(Rule.DownBytesPerSecond, u);
+        numUp.Value = RateUnits.FromBytes(Rule.UpBytesPerSecond, u);
+        loading = false;
+    }
 
-        void Store()
-        {
-            long v = RateUnits.ToBytes(num.Value, RateUnits.All[Math.Max(0, cmb.SelectedIndex)]);
-            if (dir == Direction.Download) Rule.DownBytesPerSecond = v; else Rule.UpBytesPerSecond = v;
-        }
-        num.ValueChanged += (_, _) => Store();
-        cmb.SelectedIndexChanged += (_, _) =>
-        {
-            // Changing the unit keeps the same speed: 2048 KB/s becomes 2 MB/s, not 2048 MB/s.
-            var u = RateUnits.All[Math.Max(0, cmb.SelectedIndex)];
-            long current = Rule.RateFor(dir);
-            Configure(u);
-            num.Value = RateUnits.FromBytes(current, u);
-            Store();
-        };
+    void SyncState()
+    {
+        bool showPill = Rule.Block || !Rule.Enabled;
+        limits.Visible = !showPill;
+        pill.Visible = showPill;
+        var c = Rule.Block && Rule.Enabled ? Color.FromArgb(232, 72, 85) : t.Dim;
+        pill.Text = !Rule.Enabled ? L.T("Paused") : L.T("Blocked");
+        pill.ForeColor = c;
+        pill.BackColor = Color.FromArgb(t.Dark ? 40 : 28, c);
+        name.ForeColor = Rule.Enabled ? t.Text : t.Dim;
+    }
 
-        var arrow = new ArrowGlyph { Up = dir == Direction.Upload, Theme = t, Margin = new Padding(0, 0, 4, 0) };
-        var p = new FlowLayoutPanel { AutoSize = true, WrapContents = false, Margin = Padding.Empty };
-        num.Margin = new Padding(0, 0, 6, 0);
-        cmb.Margin = Padding.Empty;
-        p.Controls.AddRange([arrow, num, cmb]);
-        tip.SetToolTip(num, L.T(dir == Direction.Download ? "DownLimitTip" : "UpLimitTip"));
-        return p;
+    void ShowMenu()
+    {
+        var menu = new ContextMenuStrip { Renderer = new ThemedMenuRenderer(t), ShowImageMargin = false, RightToLeft = RightToLeft };
+        var block = new ToolStripMenuItem(Rule.Block ? L.T("LimitInstead") : L.T("BlockAll"));
+        block.Click += (_, _) => { Rule.Block = !Rule.Block; SyncState(); };
+        var pause = new ToolStripMenuItem(Rule.Enabled ? L.T("PauseRule") : L.T("ResumeRule"));
+        pause.Click += (_, _) => { Rule.Enabled = !Rule.Enabled; SyncState(); };
+        var remove = new ToolStripMenuItem(L.T("Remove")) { ForeColor = Color.FromArgb(232, 72, 85) };
+        remove.Click += (_, _) => Removed?.Invoke(this);
+        block.ForeColor = pause.ForeColor = t.Text;
+        menu.Items.AddRange([block, pause, new ToolStripSeparator(), remove]);
+        menu.Closed += (_, _) => BeginInvoke(menu.Dispose);
+        bool rtl = RightToLeft == RightToLeft.Yes;
+        menu.Show(btnMore, new Point(rtl ? 0 : btnMore.Width, btnMore.Height), rtl ? ToolStripDropDownDirection.BelowRight : ToolStripDropDownDirection.BelowLeft);
     }
 }

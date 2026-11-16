@@ -25,6 +25,10 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and 
 - Program icons in the speed limits list and the program picker, which now lists apps with a window first under their real names.
 - A switch in the flyout turns speed limits on or off without opening Settings.
 - Each limit has its own unit (KB/s, MB/s or Mb/s), and the limits list uses the widget's arrows.
+- Block a program completely, from the menu on its row.
+- Compact Limits page: one line per program, one unit selector for the list, the driver card only while the driver is missing, and a live table of busy programs with a + to limit them.
+- Speed limits now work with WinpkFilter 3.6.2.1, which refuses the bulk packet calls: the limiter falls back to per-adapter reads and sends (checked: a 256 KB/s limit held a download at about 239 KB/s).
+- A small amber dot on the widget replaces the outline while limits are active.
 - One-click driver install: downloads the official Windows Packet Filter installer from NT Kernel's GitHub release, checks its SHA-256 and runs it.
 
 [1.0.0]: https://github.com/medovanx/data-tide/releases/tag/v1.0.0

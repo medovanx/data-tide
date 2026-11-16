@@ -159,7 +159,87 @@ sealed unsafe class NdisDriver : IDisposable
     public bool SetMode(nint adapter, uint flags)
     {
         var m = new AdapterMode { Adapter = adapter, Flags = flags };
-        return Call(NdisIoctl.SetAdapterMode, &m, AdapterMode.Size, null, 0, out _);
+        if (!Call(NdisIoctl.SetAdapterMode, &m, AdapterMode.Size, null, 0, out _)) return false;
+        lock (tunnelled)
+        {
+            tunnelled.Remove(adapter);
+            if (flags != 0) tunnelled.Add(adapter);
+        }
+        return true;
+    }
+
+    /// <summary>Adapters we put in a filtering mode: the ones the per-adapter read has to visit.</summary>
+    readonly List<nint> tunnelled = [];
+
+    /// <summary>
+    /// The bulk "unsorted" calls were refused by the installed driver (seen as error 87 with WinpkFilter 3.6.2.1),
+    /// so packets are read and sent per adapter with ETH_M_REQUEST, as every SDK sample does.
+    /// </summary>
+    bool perAdapter;
+
+    /// <summary>ETH_M_REQUEST (Common.h line 292, pack 1): adapter handle, count, success count, then one buffer pointer per packet.</summary>
+    const int MRequestHeader = 16;
+
+    /// <summary>The unsorted call failed in a way that means "not supported here": switch to the per-adapter calls for good.</summary>
+    bool FallBack(string what)
+    {
+        if (LastError is not (87 or 1 or 50)) return false; // INVALID_PARAMETER, INVALID_FUNCTION, NOT_SUPPORTED
+        perAdapter = true;
+        Services.Log.Info($"WinpkFilter refused {what} (error {LastError}); using the per-adapter calls instead.");
+        return true;
+    }
+
+    int ReadPerAdapter(nint* buffers, int capacity)
+    {
+        nint[] adapters;
+        lock (tunnelled) adapters = [.. tunnelled];
+        int total = 0;
+        int bytes = MRequestHeader + capacity * sizeof(nint);
+        byte* req = stackalloc byte[bytes];
+        foreach (var a in adapters)
+        {
+            int room = capacity - total;
+            if (room <= 0) break;
+            int size = MRequestHeader + room * sizeof(nint);
+            *(nint*)req = a;
+            *(uint*)(req + 8) = (uint)room;
+            *(uint*)(req + 12) = 0;
+            var slots = (nint*)(req + MRequestHeader);
+            for (int i = 0; i < room; i++) slots[i] = buffers[total + i];
+            if (!Call(NdisIoctl.ReadPackets, req, size, req, size, out int got))
+            {
+                if (total == 0 && adapters.Length == 1) return -1;
+                continue; // one adapter going away must not stop the others
+            }
+            uint ok = *(uint*)(req + 12);
+            if (got < MRequestHeader || ok > (uint)room) continue;
+            // The sorted read leaves the adapter implied; record it so sends know where each packet belongs.
+            for (int i = 0; i < ok; i++) ((IntermediateBufferHeader*)buffers[total + i])->Adapter = a;
+            total += (int)ok;
+        }
+        return total;
+    }
+
+    int SendPerAdapter(uint code, nint* buffers, int count)
+    {
+        int sent = 0;
+        int bytes = MRequestHeader + count * sizeof(nint);
+        byte* req = stackalloc byte[bytes];
+        var slots = (nint*)(req + MRequestHeader);
+        var done = new bool[count];
+        for (int start = 0; start < count; start++)
+        {
+            if (done[start]) continue;
+            nint a = ((IntermediateBufferHeader*)buffers[start])->Adapter;
+            int n = 0;
+            for (int i = start; i < count; i++)
+                if (!done[i] && ((IntermediateBufferHeader*)buffers[i])->Adapter == a) { slots[n++] = buffers[i]; done[i] = true; }
+            *(nint*)req = a;
+            *(uint*)(req + 8) = (uint)n;
+            *(uint*)(req + 12) = 0;
+            if (Call(code, req, MRequestHeader + n * sizeof(nint), null, 0, out _)) sent += n;
+        }
+        return sent;
     }
 
     /// <summary>Registers (or with 0 removes) the event the driver signals when this adapter has packets for us. The event needs SYNCHRONIZE access.</summary>
@@ -178,8 +258,10 @@ sealed unsafe class NdisDriver : IDisposable
     /// </summary>
     public int ReadUnsorted(nint* buffers, int capacity)
     {
+        if (perAdapter) return ReadPerAdapter(buffers, capacity);
         var r = new UnsortedRequest { Packets = (nint)buffers, Count = (uint)capacity };
-        if (!Call(NdisIoctl.ReadPacketsUnsorted, &r, UnsortedRequest.Size, &r, UnsortedRequest.Size, out int got)) return -1;
+        if (!Call(NdisIoctl.ReadPacketsUnsorted, &r, UnsortedRequest.Size, &r, UnsortedRequest.Size, out int got))
+            return FallBack("the bulk read") ? ReadPerAdapter(buffers, capacity) : -1;
         // The SDK's check (ndisapi.cpp line 441): the count must have been written back and fit the array.
         if (got < UnsortedRequest.Size || r.Count > (uint)capacity) { LastError = 13; return -1; }
         return (int)r.Count;
@@ -194,8 +276,11 @@ sealed unsafe class NdisDriver : IDisposable
     int Send(uint code, nint* buffers, int count)
     {
         if (count <= 0) return 0;
+        uint sorted = code == NdisIoctl.SendPacketToAdapterUnsorted ? NdisIoctl.SendPacketsToAdapter : NdisIoctl.SendPacketsToMstcp;
+        if (perAdapter) return SendPerAdapter(sorted, buffers, count);
         var r = new UnsortedRequest { Packets = (nint)buffers, Count = (uint)count };
-        return Call(code, &r, UnsortedRequest.Size, &r, UnsortedRequest.Size, out _) ? (int)Math.Min(r.Count, (uint)count) : -1;
+        if (Call(code, &r, UnsortedRequest.Size, &r, UnsortedRequest.Size, out _)) return (int)Math.Min(r.Count, (uint)count);
+        return FallBack("the bulk send") ? SendPerAdapter(sorted, buffers, count) : -1;
     }
 
     public void Dispose() => device.Dispose();

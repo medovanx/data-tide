@@ -259,7 +259,7 @@ sealed class TaskbarWidget : NativeWindow
             g.TextRenderingHint = TextRenderingHint.AntiAliasGridFit; // grayscale AA: correct on per-pixel alpha
             g.Clear(Color.FromArgb(1, 0, 0, 0)); // alpha 1 keeps the whole box clickable
 
-            // Soft sea-blue pill like Salaty Reminder's, brighter on hover; an amber edge while limits are active.
+            // Soft sea-blue pill like Salaty Reminder's, brighter on hover; an amber dot while limits are active.
             {
                 var box = new RectangleF(1, 4 * s, w - 2, h - 8 * s);
                 int a1 = hover ? (dark ? 95 : 70) : (dark ? 55 : 40);
@@ -267,10 +267,18 @@ sealed class TaskbarWidget : NativeWindow
                 using var path = Art.RoundRect(box, 6 * s);
                 using var bg = new LinearGradientBrush(box, Color.FromArgb(a1, Art.SeaLight), Color.FromArgb(a2, Art.SeaDark), LinearGradientMode.ForwardDiagonal);
                 g.FillPath(bg, path);
-                using var edge = limited
-                    ? new Pen(Color.FromArgb(dark ? 110 : 90, Art.UpGlow), Math.Max(1f, s))
-                    : new Pen(Color.FromArgb(dark ? 40 : 30, dark ? Color.White : Art.SeaDark), Math.Max(1f, s));
+                using var edge = new Pen(Color.FromArgb(dark ? 40 : 30, dark ? Color.White : Art.SeaDark), Math.Max(1f, s));
                 g.DrawPath(edge, path);
+                if (limited)
+                {
+                    // Speed limits active: a small amber dot in the far top corner, like a notification badge.
+                    float d = 7 * s;
+                    float dx = rtl ? box.Left + 3 * s : box.Right - d - 3 * s, dy = box.Top + 3 * s;
+                    using var ring = new SolidBrush(dark ? Color.FromArgb(32, 32, 32) : Color.FromArgb(240, 240, 240));
+                    g.FillEllipse(ring, dx - s, dy - s, d + 2 * s, d + 2 * s);
+                    using var dot = new SolidBrush(Art.UpGlow);
+                    g.FillEllipse(dot, dx, dy, d, d);
+                }
             }
 
             Color upC = dark ? Art.UpGlow : Color.FromArgb(200, 110, 0);

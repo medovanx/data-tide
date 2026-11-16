@@ -8,6 +8,8 @@ static class Program
         // The elevated limiter helper is this same exe, started with --limiter (see LimiterClient).
         if (args.Length > 0 && args[0] == "--limiter")
             return LimiterHost.Run(args);
+        if (args.Length > 4 && args[0] == "--limiter-probe")
+            return LimiterProbe.Run(args);
         if (args.Length > 1 && args[0] == "--shots")
             return Shots.Run(args[1]);
         if (args.Length > 1 && args[0] == "--render-icon")

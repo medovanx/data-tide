@@ -26,6 +26,12 @@ static class NdisIoctl
     public static readonly uint SetEvent = Code(7);
     /// <summary>IOCTL_NDISRD_GET_ADAPTER_MODE, index +13 (Common.h line 950).</summary>
     public static readonly uint GetAdapterMode = Code(13);
+    /// <summary>IOCTL_NDISRD_SEND_PACKETS_TO_ADAPTER, index +20: a batch for one adapter (ETH_M_REQUEST).</summary>
+    public static readonly uint SendPacketsToAdapter = Code(20);
+    /// <summary>IOCTL_NDISRD_SEND_PACKETS_TO_MSTCP, index +21: a batch for one adapter's TCP/IP side.</summary>
+    public static readonly uint SendPacketsToMstcp = Code(21);
+    /// <summary>IOCTL_NDISRD_READ_PACKETS, index +22: read a batch queued on one adapter (what every SDK sample uses).</summary>
+    public static readonly uint ReadPackets = Code(22);
     /// <summary>IOCTL_NDISRD_READ_PACKETS_UNSORTED, index +25 (Common.h line 986).</summary>
     public static readonly uint ReadPacketsUnsorted = Code(25);
     /// <summary>IOCTL_NDISRD_SEND_PACKET_TO_ADAPTER_UNSORTED, index +26 (Common.h line 989).</summary>
