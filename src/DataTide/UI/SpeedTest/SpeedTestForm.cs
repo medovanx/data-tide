@@ -11,13 +11,13 @@ sealed class SpeedTestForm : Form
     readonly DataTideApp app;
     readonly Theme t = Theme.Current;
     readonly SpeedTiles tiles = new() { Width = 560, Height = 150, Margin = new Padding(0, 0, 0, 6) };
-    readonly IconButton btnStart = new() { Width = 150, Height = 34, Primary = true, Glyph = "" };
-    readonly Label lblNote = new() { AutoSize = true, Tag = "dim", MaximumSize = new Size(390, 0), Margin = new Padding(12, 2, 0, 0) };
+    readonly IconButton btnStart = new() { Width = 150, Height = 34, Primary = true, Glyph = "\uE768" };
+    readonly Label lblNote = new() { AutoSize = true, Tag = "dim", MaximumSize = new Size(556, 0), Margin = new Padding(0, 8, 0, 2) };
     readonly ThemedNumber numSize = new() { Minimum = 0, Maximum = 1_000_000, DecimalPlaces = 2, Increment = 1, Width = 150 };
     readonly ThemedCombo cmbSize = new() { Width = 90 };
     readonly ThemedNumber numSpeed = new() { Minimum = 0, Maximum = 100_000, DecimalPlaces = 1, Increment = 5, Width = 150 };
     readonly ThemedCombo cmbSpeed = new() { Width = 90 };
-    readonly IconButton btnDetect = new() { Width = 110, Height = 30, Glyph = "" };
+    readonly IconButton btnDetect = new() { Width = 110, Height = 30, Glyph = "\uE9D9" };
     readonly Label lblResult = new() { AutoSize = true, Font = new Font("Segoe UI Semibold", 18f), Margin = new Padding(0, 10, 0, 0) };
     readonly Label lblResultSub = new() { AutoSize = true, Tag = "dim", Margin = new Padding(2, 0, 0, 4) };
     readonly ToolTip tip = new();
@@ -34,7 +34,7 @@ sealed class SpeedTestForm : Form
         StartPosition = FormStartPosition.CenterScreen;
         AutoScaleDimensions = new SizeF(96f, 96f);
         AutoScaleMode = AutoScaleMode.Dpi;
-        ClientSize = new Size(640, 520);
+        ClientSize = new Size(640, 560);
         Font = new Font("Segoe UI", 9.75f);
         BackColor = t.Window;
         ForeColor = t.Text;
@@ -51,9 +51,10 @@ sealed class SpeedTestForm : Form
         cmbSpeed.SelectedIndex = 0;  // Mbps
         numSize.Value = 1;
 
-        var testCard = Card(L.T("SpeedTest"), "", tiles, Flow(btnStart, lblNote));
-        var calcCard = Card(L.T("DownloadTime"), "",
-            Row(L.T("FileSize"), Flow(numSize, cmbSize)),
+        var testCard = Card(L.T("SpeedTest"), Art.IconSpeed, tiles, btnStart, lblNote);
+        var calcCard = Card(L.T("DownloadTime"), "\uE896",
+            // An empty slot as wide as Detect keeps the number and unit boxes of both rows in the same columns.
+            Row(L.T("FileSize"), Flow(numSize, cmbSize, new Panel { Width = btnDetect.Width, Height = btnDetect.Height })),
             Row(L.T("ConnectionSpeed"), Flow(numSpeed, cmbSpeed, btnDetect)),
             lblResult, lblResultSub);
         var flow = new FlowLayoutPanel { Dock = DockStyle.Fill, FlowDirection = FlowDirection.TopDown, WrapContents = false, Padding = new Padding(20, 20, 20, 0), AutoScroll = true };
@@ -120,7 +121,7 @@ sealed class SpeedTestForm : Form
         double bytesPerSec = DownloadTime.BytesPerSecond((double)numSpeed.Value, SpeedUnitNow);
         string size = $"{numSize.Value.ToString("0.##", CultureInfo.InvariantCulture)} {unit}";
         // Left-to-right marks keep "4.7 GB" and "94.6 Mbps" whole and in order inside Arabic text.
-        static string Ltr(string s) => "‎" + s + "‎";
+        static string Ltr(string s) => "\u200E" + s + "\u200E";
         lblResultSub.Text = L.F("AtSpeed", Ltr(size), $"{Ltr(SpeedTiles.Mbps(bytesPerSec * 8))} ({Ltr(ByteFormat.Rate(bytesPerSec))})");
     }
 
@@ -148,7 +149,7 @@ sealed class SpeedTestForm : Form
         if (running != null) { running.Cancel(); return; }
         running = new CancellationTokenSource();
         btnStart.Text = L.T("StopTest");
-        btnStart.Glyph = "";
+        btnStart.Glyph = "\uE71A";
         btnDetect.Enabled = false;
         tiles.PingMs = tiles.JitterMs = tiles.DownBps = tiles.UpBps = double.NaN;
         var progress = new Progress<SpeedTestProgress>(p =>
@@ -185,7 +186,7 @@ sealed class SpeedTestForm : Form
             detectAfterTest = false;
             tiles.Active = null;
             btnStart.Text = L.T("StartTest");
-            btnStart.Glyph = "";
+            btnStart.Glyph = "\uE768";
             btnDetect.Enabled = true;
             tiles.Invalidate();
         }

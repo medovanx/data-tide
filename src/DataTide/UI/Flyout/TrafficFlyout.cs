@@ -16,7 +16,9 @@ sealed class TrafficFlyout : Form
     readonly ToggleSwitch tglLimits = new();
     readonly ToolTip tip = new();
     bool syncingToggle;
-    bool dark, activated;
+    bool dark, activated, menuOpen;
+    /// <summary>The interface pill in the header; clicking it opens the interface list.</summary>
+    Rectangle pillRect;
     public DateTime LastHidden { get; private set; }
 
     public TrafficFlyout(DataTideApp app)
@@ -196,10 +198,67 @@ sealed class TrafficFlyout : Form
         activated = true;
     }
 
+    protected override void OnMouseMove(MouseEventArgs e)
+    {
+        base.OnMouseMove(e);
+        bool over = pillRect.Contains(e.Location);
+        Cursor = over ? Cursors.Hand : Cursors.Default;
+        Invalidate(pillRect);
+    }
+
+    protected override void OnMouseLeave(EventArgs e)
+    {
+        base.OnMouseLeave(e);
+        Invalidate(pillRect);
+    }
+
+    protected override void OnMouseClick(MouseEventArgs e)
+    {
+        base.OnMouseClick(e);
+        if (e.Button == MouseButtons.Left && pillRect.Contains(e.Location)) ShowInterfaceMenu();
+    }
+
+    /// <summary>Auto plus every connected adapter, with a check on the current choice; picking one switches the widget.</summary>
+    void ShowInterfaceMenu()
+    {
+        var t = new Theme(dark);
+        var menu = new ContextMenuStrip { Renderer = new ThemedMenuRenderer(t), RightToLeft = RightToLeft, ShowCheckMargin = true, ShowImageMargin = false };
+        void Add(string id, string text, bool live)
+        {
+            var item = new ToolStripMenuItem(text) { Checked = app.S.InterfaceId == id, ForeColor = t.Text };
+            if (live) item.Font = new Font(menu.Font, FontStyle.Bold);
+            item.Click += (_, _) =>
+            {
+                var s = app.S.Clone();
+                s.InterfaceId = id;
+                app.ApplySettings(s);
+                Invalidate();
+            };
+            menu.Items.Add(item);
+        }
+        string? routeId = app.Monitor.DefaultInterfaceId();
+        Add(AppSettings.AutoInterface, L.T("AutoInterface"), false);
+        menu.Items.Add(new ToolStripSeparator());
+        foreach (var (id, name, _, up) in app.Monitor.All().Where(i => i.up && (app.S.LogVirtual || !app.Monitor.IsVirtual(i.id))))
+            Add(id, id == routeId ? $"{name}  ({L.T("Internet")})" : name, id == routeId);
+        menuOpen = true;
+        menu.Closed += (_, _) =>
+        {
+            menuOpen = false;
+            Invalidate();
+            BeginInvoke(menu.Dispose);
+            if (Visible) Activate();
+        };
+        menu.Show(this, new Point(rtl ? pillRect.Left : pillRect.Right, pillRect.Bottom + Px(4)),
+            rtl ? ToolStripDropDownDirection.BelowRight : ToolStripDropDownDirection.BelowLeft);
+    }
+
+    bool rtl => L.Ar;
+
     protected override void OnDeactivate(EventArgs e)
     {
         base.OnDeactivate(e);
-        if (activated) Hide();
+        if (activated && !menuOpen) Hide(); // the interface list is ours: opening it must not close the flyout
     }
 
     protected override void OnVisibleChanged(EventArgs e)
@@ -236,11 +295,17 @@ sealed class TrafficFlyout : Form
         string auto = app.S.InterfaceId == AppSettings.AutoInterface ? $" ({L.T("Auto")})" : "";
         string iface = app.ShownInterfaceName + auto;
         Size ps = TextRenderer.MeasureText(iface, fSmall);
-        int pillW = Math.Min(ps.Width + Px(18), Width / 2 - pad);
-        var pillR = new Rectangle(rtl ? pad : Width - pad - pillW, markR.Top + (markS - Px(22)) / 2, pillW, Px(22));
-        Art.FillRound(g, pillR, Px(11), Color.FromArgb(46, 255, 255, 255));
-        TextRenderer.DrawText(g, iface, fSmall, Rectangle.Inflate(pillR, -Px(8), 0), Color.White,
+        int chev = Px(16);
+        int pillW = Math.Min(ps.Width + Px(18) + chev, Width / 2 - pad);
+        var pillR = new Rectangle(rtl ? pad : Width - pad - pillW, markR.Top + (markS - Px(24)) / 2, pillW, Px(24));
+        pillRect = pillR;
+        bool hot = pillR.Contains(PointToClient(Cursor.Position)) || menuOpen;
+        Art.FillRound(g, pillR, Px(12), Color.FromArgb(hot ? 80 : 46, 255, 255, 255));
+        var textR = rtl ? new Rectangle(pillR.X + chev + Px(4), pillR.Y, pillR.Width - chev - Px(12), pillR.Height)
+                        : new Rectangle(pillR.X + Px(8), pillR.Y, pillR.Width - chev - Px(12), pillR.Height);
+        TextRenderer.DrawText(g, iface, fSmall, textR, Color.White,
             TextFormatFlags.HorizontalCenter | TextFormatFlags.VerticalCenter | TextFormatFlags.EndEllipsis | (rtl ? TextFormatFlags.RightToLeft : 0));
+        Art.GlyphCentered(g, "\uE70D", 8 * S, new RectangleF(rtl ? pillR.X + Px(4) : pillR.Right - chev - Px(4), pillR.Y, chev, pillR.Height), Color.White);
         int brandW = Width - pad * 2 - markS - Px(8) - pillW - Px(8);
         var brandR = rtl ? new Rectangle(markR.Left - Px(8) - brandW, markR.Top, brandW, markS) : new Rectangle(markR.Right + Px(8), markR.Top, brandW, markS);
         TextRenderer.DrawText(g, L.T("AppName"), fBrand, brandR, Color.White, near | TextFormatFlags.VerticalCenter | TextFormatFlags.EndEllipsis);

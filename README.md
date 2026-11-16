@@ -28,7 +28,7 @@ as PNG or PDF, and can cap the download and upload speed of any program. English
 ## Features
 
 - **Lives in the taskbar.** Upload over download, embedded right next to the notification area. It takes the nearest free spot, so it never covers other taskbar tools such as TrafficMonitor or Salaty Reminder, hides with the taskbar in fullscreen apps and comes back after Explorer restarts.
-- **Pick the interface.** Auto follows the connection Windows uses to reach the internet (Wi-Fi, Ethernet, a VPN...) and switches by itself, or pin any adapter. Right-click the widget to switch quickly.
+- **Pick the interface.** Auto follows the connection Windows uses to reach the internet (Wi-Fi, Ethernet, a VPN...) and switches by itself, or pin any adapter. Click the interface at the top of the flyout, or right-click the widget, to switch quickly.
 - **Monthly usage at a glance.** Rest the mouse on the widget to see today's and this month's data, split into download and upload.
 - **Traffic flyout.** Click the widget for big live speeds, a one-minute graph, this month's total and how much each interface used today.
 - **Daily data log.** Every interface is logged separately, hour by hour, on your PC. Keep 90 days, about a year, or everything.

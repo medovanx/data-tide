@@ -23,6 +23,7 @@ public static class L
     static readonly Dictionary<string, (string en, string ar)> D = new()
     {
         ["AppName"] = ("Data Tide", "داتا تايد"),
+        ["Internet"] = ("internet", "الإنترنت"),
         ["Download"] = ("Download", "التنزيل"),
         ["Upload"] = ("Upload", "الرفع"),
         ["Total"] = ("Total", "الإجمالي"),

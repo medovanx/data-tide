@@ -16,7 +16,7 @@ sealed class LimitRow : TableLayoutPanel
     readonly FlowLayoutPanel limits = new() { AutoSize = true, WrapContents = false, Margin = Padding.Empty, Anchor = AnchorStyles.Right };
     readonly Label pill = new() { AutoSize = true, Tag = "keep", Font = new Font("Segoe UI Semibold", 8.5f), Padding = new Padding(10, 3, 10, 3), Anchor = AnchorStyles.Right, Margin = new Padding(0, 0, 4, 0) };
     readonly Label name = new() { AutoSize = true, Tag = "keep", Font = new Font("Segoe UI Semibold", 9.75f), Margin = Padding.Empty, AutoEllipsis = true, MaximumSize = new Size(170, 0) };
-    readonly IconButton btnMore = new() { Width = 32, Height = 30, Glyph = "" };
+    readonly IconButton btnMore = new() { Width = 32, Height = 30, Glyph = "\uE712" };
     RateUnit unit;
     bool loading;
 
