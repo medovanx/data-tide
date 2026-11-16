@@ -85,6 +85,20 @@ public sealed class UsageLedger
             foreach (var k in hours.Keys.Where(k => k.hour < keepFrom).ToList()) { hours.Remove(k); Dirty = true; }
     }
 
+    /// <summary>Deletes every record of the given interfaces; returns how many hours were removed.</summary>
+    public int Remove(IEnumerable<string> interfaceIds)
+    {
+        var ids = interfaceIds.ToHashSet();
+        lock (gate)
+        {
+            var gone = hours.Keys.Where(k => ids.Contains(k.id)).ToList();
+            foreach (var k in gone) hours.Remove(k);
+            foreach (var id in ids) names.Remove(id);
+            if (gone.Count > 0) Dirty = true;
+            return gone.Count;
+        }
+    }
+
     public void Clear()
     {
         lock (gate) { hours.Clear(); Dirty = true; }

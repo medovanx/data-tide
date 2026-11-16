@@ -54,7 +54,9 @@ sealed class TrafficFlyout : Form
     IReadOnlyList<DailyUsage> TodayRows()
     {
         var today = DateOnly.FromDateTime(DateTime.Now);
-        return app.Ledger.Days(today, today).OrderByDescending(d => d.Total).Take(MaxRows).ToList();
+        return app.Ledger.Days(today, today)
+            .Where(d => app.S.LogVirtual || !app.Monitor.IsVirtual(d.InterfaceId))
+            .OrderByDescending(d => d.Total).Take(MaxRows).ToList();
     }
 
     int ContentHeight(int rows) => HeaderH + 14 + GraphH + 18 + 26 + Math.Max(1, rows) * RowH + 34 + 16 + 34 + 16;

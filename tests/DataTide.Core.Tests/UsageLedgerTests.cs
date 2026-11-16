@@ -73,4 +73,15 @@ public class UsageLedgerTests
         l.Prune(new DateTime(2025, 6, 1));
         Assert.Single(l.Hours(DateTime.MinValue, DateTime.MaxValue));
     }
+
+    [Fact]
+    public void RemoveDropsOnlyThoseInterfaces()
+    {
+        var l = new UsageLedger();
+        l.Add(new DateTime(2026, 3, 1, 9, 0, 0), "eth", "Ethernet", 10, 1);
+        l.Add(new DateTime(2026, 3, 1, 9, 0, 0), "eth-wfp", "Ethernet-WFP 802.3 MAC Layer", 10, 1);
+        l.Add(new DateTime(2026, 3, 1, 10, 0, 0), "eth-wfp", "Ethernet-WFP 802.3 MAC Layer", 10, 1);
+        Assert.Equal(2, l.Remove(["eth-wfp"]));
+        Assert.Equal("eth", Assert.Single(l.Interfaces()).id);
+    }
 }

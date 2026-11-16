@@ -18,10 +18,13 @@ sealed class SettingsForm : Form
     readonly ToggleSwitch tglStartup = new();
     // Network
     readonly ThemedCombo cmbIface = Combo(300), cmbKeep = Combo();
-    readonly ToggleSwitch tglLog = new();
+    readonly ToggleSwitch tglLog = new(), tglVirtual = new();
     readonly Button btnFolder = new() { AutoSize = true, Height = 30 }, btnClear = new() { AutoSize = true, Height = 30 };
     readonly List<string> ifaceIds = [];
-    static readonly int[] KeepOptions = [90, 400, 0];
+    readonly ThemedNumber numKeep = new() { Minimum = 1, Maximum = 36500, Width = 120, Increment = 30 };
+    Control keepCustomRow = null!;
+    /// <summary>Presets in days; 0 is forever. The last item of the dropdown is "Custom", backed by <see cref="numKeep"/>.</summary>
+    static readonly int[] KeepOptions = [7, 30, 90, 180, 365, 730, 1825, 0];
     // Limits
     readonly ToggleSwitch tglLimits = new();
     readonly FlowLayoutPanel rulesPanel = new() { FlowDirection = FlowDirection.TopDown, WrapContents = false, AutoSize = true, Margin = Padding.Empty };
@@ -154,8 +157,13 @@ sealed class SettingsForm : Form
         cmbIface.SelectedIndex = Math.Max(0, ifaceIds.IndexOf(s.InterfaceId));
 
         tglLog.Checked = s.LogUsage;
-        cmbKeep.Items.AddRange([L.T("Keep90"), L.T("Keep400"), L.T("KeepForever")]);
-        cmbKeep.SelectedIndex = Math.Max(0, Array.IndexOf(KeepOptions, s.KeepDays));
+        tglVirtual.Checked = s.LogVirtual;
+        cmbKeep.Items.AddRange([L.T("Keep7"), L.T("Keep30"), L.T("Keep90"), L.T("Keep180"), L.T("Keep365"), L.T("Keep730"), L.T("Keep1825"), L.T("KeepForever"), L.T("KeepCustom")]);
+        int preset = Array.IndexOf(KeepOptions, s.KeepDays);
+        cmbKeep.SelectedIndex = preset >= 0 ? preset : KeepOptions.Length;
+        numKeep.Value = s.KeepDays > 0 ? s.KeepDays : 365;
+        cmbKeep.SelectedIndexChanged += (_, _) => SyncEnabled();
+        tglLog.CheckedChanged += (_, _) => SyncEnabled();
         btnFolder.Text = L.T("OpenDataFolder");
         btnClear.Text = L.T("ClearHistory");
         btnFolder.Click += (_, _) => { Directory.CreateDirectory(AppPaths.Data); Updater.OpenPage(AppPaths.Data); };
@@ -166,10 +174,11 @@ sealed class SettingsForm : Form
             UsageStore.Save(app.Ledger);
         };
         var autoNote = new Label { Text = L.T("AutoInterfaceNote"), AutoSize = true, MaximumSize = new Size(490, 0), Tag = "dim", Margin = new Padding(0, 0, 0, 6) };
+        var virtualNote = new Label { Text = L.T("LogVirtualNote"), AutoSize = true, MaximumSize = new Size(490, 0), Tag = "dim", Margin = new Padding(0, 0, 0, 6) };
         var logNote = new Label { Text = L.T("LogNote"), AutoSize = true, MaximumSize = new Size(490, 0), Tag = "dim", Margin = new Padding(0, 6, 0, 6) };
         AddPage(Art.IconNetwork, L.T("Network"),
             Card(L.T("WidgetInterface"), Art.IconNetwork, Stacked(L.T("Interface"), cmbIface), autoNote),
-            Card(L.T("UsageLog"), Art.IconChart, Row(L.T("LogUsage"), tglLog), Row(L.T("KeepHistory"), cmbKeep), logNote, Flow(btnFolder, btnClear)));
+            Card(L.T("UsageLog"), Art.IconChart, Row(L.T("LogUsage"), tglLog), Row(L.T("LogVirtual"), tglVirtual), virtualNote, Row(L.T("KeepHistory"), cmbKeep), keepCustomRow = Row(L.T("KeepDays"), numKeep), logNote, Flow(btnFolder, btnClear)));
     }
 
     void BuildLimits()
@@ -317,7 +326,8 @@ sealed class SettingsForm : Form
     void SyncEnabled()
     {
         tglAutoInstall.Enabled = tglAutoCheck.Checked;
-        cmbKeep.Enabled = tglLog.Checked;
+        cmbKeep.Enabled = numKeep.Enabled = tglVirtual.Enabled = tglLog.Checked;
+        keepCustomRow.Visible = cmbKeep.SelectedIndex == KeepOptions.Length;
         int active = s.Limits.Count(r => r.Enabled);
         lblLimits.Text = !LimiterClient.DriverInstalled ? L.T("DriverMissing")
                        : s.Limits.Count == 0 ? L.T("NoRules")
@@ -332,7 +342,9 @@ sealed class SettingsForm : Form
         s.ShowBits = cmbUnits.SelectedIndex == 1;
         s.InterfaceId = ifaceIds[Math.Max(0, cmbIface.SelectedIndex)];
         s.LogUsage = tglLog.Checked;
-        s.KeepDays = KeepOptions[Math.Max(0, cmbKeep.SelectedIndex)];
+        s.LogVirtual = tglVirtual.Checked;
+        s.KeepDays = cmbKeep.SelectedIndex >= 0 && cmbKeep.SelectedIndex < KeepOptions.Length
+            ? KeepOptions[cmbKeep.SelectedIndex] : (int)numKeep.Value;
         s.LimitsEnabled = tglLimits.Checked;
         s.AutoCheckUpdates = tglAutoCheck.Checked;
         s.AutoInstallUpdates = tglAutoInstall.Checked;

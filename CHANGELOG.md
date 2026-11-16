@@ -16,4 +16,10 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and 
 - English and Arabic with a full right-to-left layout; light and dark theme following Windows.
 - Auto-updates from GitHub Releases with SHA-256 verification.
 
+### Fixed during testing
+- Filter drivers bound to an adapter (WFP, QoS Packet Scheduler, firewalls) are no longer counted as extra interfaces with the same traffic, and their rows are removed from existing logs.
+- Virtual adapters (VPNs, Hyper-V and WSL switches, virtual machines) are left out of the log by default, since their traffic also crosses a real adapter. A switch in Settings includes them.
+- History can be kept for 1 week up to 5 years, forever, or any number of days.
+- Closing a dropdown could crash the app on the next click.
+
 [1.0.0]: https://github.com/medovanx/data-tide/releases/tag/v1.0.0

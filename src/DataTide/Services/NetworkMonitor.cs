@@ -41,11 +41,39 @@ sealed class NetworkMonitor
         byId.Clear();
         try
         {
+            var flags = IfTable.Read();
+            virtualIds.Clear();
             foreach (var ni in NetworkInterface.GetAllNetworkInterfaces())
-                if (ni.NetworkInterfaceType is not (NetworkInterfaceType.Loopback or NetworkInterfaceType.Tunnel))
-                    byId[ni.Id] = ni;
+            {
+                if (ni.NetworkInterfaceType is NetworkInterfaceType.Loopback or NetworkInterfaceType.Tunnel) continue;
+                // "Ethernet-WFP 802.3 MAC Layer...", "Ethernet-QoS Packet Scheduler...": the same adapter again.
+                var f = Guid.TryParse(ni.Id, out var g) ? flags.GetValueOrDefault(g) : null;
+                if (f is { IsFilter: true })
+                {
+                    filterIds.Add(ni.Id);
+                    continue;
+                }
+                byId[ni.Id] = ni;
+                if (f is { IsHardware: false }) virtualIds.Add(ni.Id);
+            }
         }
         catch (Exception ex) { Log.Error(ex); }
+    }
+
+    readonly HashSet<string> filterIds = [];
+    readonly HashSet<string> virtualIds = [];
+
+    /// <summary>True for adapters Windows doesn't mark as hardware: VPNs, Hyper-V and WSL switches, VM host adapters.</summary>
+    public bool IsVirtual(string id) => virtualIds.Contains(id);
+
+    /// <summary>Ids of filter bindings seen so far: duplicates of a real adapter, never counted.</summary>
+    public IReadOnlyCollection<string> FilterIds
+    {
+        get
+        {
+            if (listedAt == DateTime.MinValue) Relist();
+            return filterIds;
+        }
     }
 
     /// <summary>Every known interface (up or not), for the settings list.</summary>

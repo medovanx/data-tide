@@ -22,8 +22,13 @@ public sealed class AppSettings
 
     /// <summary>Log usage of every interface; logging never sends anything anywhere.</summary>
     public bool LogUsage { get; set; } = true;
+    /// <summary>
+    /// Also log virtual adapters (VPNs, Hyper-V and WSL switches, VirtualBox, VMware). Off by default: their traffic
+    /// usually crosses a real adapter too, so it would be counted twice.
+    /// </summary>
+    public bool LogVirtual { get; set; }
     /// <summary>Days of usage history to keep (0 = forever).</summary>
-    public int KeepDays { get; set; } = 400;
+    public int KeepDays { get; set; } = 365;
 
     public bool LimitsEnabled { get; set; }
     public List<LimitRule> Limits { get; set; } = [];

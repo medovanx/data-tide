@@ -44,6 +44,8 @@ sealed class DataTideApp : ApplicationContext
         L.Ar = S.Language == "ar";
         AppIcon = LoadIcon();
         Ledger = ledger ?? UsageStore.Load();
+        // Filter bindings logged by 1.0.0 builds before they were recognised: they only repeat a real adapter.
+        if (ledger == null && Ledger.Remove(Monitor.FilterIds) > 0) UsageStore.Save(Ledger);
 
         host = new HostWindow(this);
         menu.Opening += (_, e) => { BuildMenu(); e.Cancel = false; };
@@ -114,7 +116,9 @@ sealed class DataTideApp : ApplicationContext
         var samples = sampler.Sample(Monitor.Read(), now);
         LastSamples = samples;
         if (S.LogUsage)
-            foreach (var x in samples) Ledger.Add(now, x.InterfaceId, x.Name, x.ReceivedDelta, x.SentDelta);
+            foreach (var x in samples)
+                if (S.LogVirtual || !Monitor.IsVirtual(x.InterfaceId))
+                    Ledger.Add(now, x.InterfaceId, x.Name, x.ReceivedDelta, x.SentDelta);
 
         string? id = S.InterfaceId == AppSettings.AutoInterface ? Monitor.DefaultInterfaceId() : S.InterfaceId;
         var shown = samples.FirstOrDefault(x => x.InterfaceId == id);
