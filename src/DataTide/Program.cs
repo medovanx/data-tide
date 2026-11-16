@@ -10,6 +10,8 @@ static class Program
             return LimiterHost.Run(args);
         if (args.Length > 4 && args[0] == "--limiter-probe")
             return LimiterProbe.Run(args);
+        if (args.Length > 1 && args[0] == "--speedtest-probe")
+            return SpeedTestProbe.Run(args[1]);
         if (args.Length > 1 && args[0] == "--shots")
             return Shots.Run(args[1]);
         if (args.Length > 1 && args[0] == "--render-icon")

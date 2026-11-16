@@ -37,6 +37,12 @@ static class Shots
                 flyout.Dispose();
             }
 
+            var speed = new SpeedTestForm(app) { StartPosition = FormStartPosition.Manual, Location = new Point(-4000, -4000) };
+            speed.Show();
+            speed.ShowForShot(new SpeedTestResult(DateTime.Now.AddMinutes(-3), 18, 2.4, 94.6e6, 38.2e6));
+            SaveClient(speed, Path.Combine(dir, $"speedtest-{lang}.png"));
+            speed.Close();
+
             var settings = new SettingsForm(app) { StartPosition = FormStartPosition.Manual, Location = new Point(-4000, -4000) };
             settings.Show();
             for (int i = 0; i < settings.PageCount; i++)

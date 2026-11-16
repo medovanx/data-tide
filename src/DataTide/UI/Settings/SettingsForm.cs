@@ -233,7 +233,7 @@ sealed class SettingsForm : Form
         };
         var addRow = Flow(cmbProcs, btnAddProc, btnBrowse);
         addRow.Margin = new Padding(0, 10, 0, 4);
-        var rulesCard = Card(L.T("SpeedLimits"), Art.IconSpeed,
+        var rulesCard = Card(L.T("SpeedLimits"), Art.IconLimit,
             Row(L.T("EnableLimits"), tglLimits),
             Row(L.T("LimitUnits"), segUnits),
             rulesPanel,
@@ -245,7 +245,7 @@ sealed class SettingsForm : Form
         liveList.Show([], null, false, L.T("LiveOff"), app.Rate);
         var liveCard = Card(L.T("LiveByProgram"), Art.IconChart, liveList);
         // The driver card is only there while the driver is missing, and then it comes first.
-        AddPage(Art.IconSpeed, L.T("Limits"), driverCard, rulesCard, liveCard);
+        AddPage(Art.IconLimit, L.T("Limits"), driverCard, rulesCard, liveCard);
         UpdateDriverText();
     }
 

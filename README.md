@@ -33,6 +33,8 @@ as PNG or PDF, and can cap the download and upload speed of any program. English
 - **Traffic flyout.** Click the widget for big live speeds, a one-minute graph, this month's total and how much each interface used today.
 - **Daily data log.** Every interface is logged separately, hour by hour, on your PC. Keep 90 days, about a year, or everything.
 - **Reports.** Today, the last 7 or 30 days, this or last month, or all time: totals, a stacked chart with one colour per interface, a table per interface and a day-by-day table. Every number says which interface it belongs to.
+- **Speed test.** Ping, jitter, download and upload against Cloudflare's servers, the way browser speed tests measure.
+- **How long will it take?** Enter a file size and a speed (or click Detect to use your last test) to see how long the download takes.
 - **Export.** Save any report as a crisp PNG or a multi-page A4 PDF, in English or Arabic.
 - **Per-app speed limits.** Cap the download and upload speed of any program, for example a game launcher or a cloud sync app, while everything else runs at full speed. See [Speed limits](#speed-limits).
 - **English and Arabic.** Full right-to-left layout in Arabic. Light and dark theme follow Windows.
@@ -57,6 +59,10 @@ as PNG or PDF, and can cap the download and upload speed of any program. English
   <tr>
     <td align="center"><img src="docs/screenshots/settings-2-en.png" width="440"><br><sub>Per-app speed limits</sub></td>
     <td align="center"><img src="docs/screenshots/settings-1-en.png" width="440"><br><sub>Interface and usage log</sub></td>
+  </tr>
+  <tr>
+    <td align="center"><img src="docs/screenshots/speedtest-en.png" width="440"><br><sub>Speed test and download time</sub></td>
+    <td align="center"><img src="docs/screenshots/speedtest-ar.png" width="440"><br><sub>In Arabic</sub></td>
   </tr>
 </table>
 
@@ -117,6 +123,7 @@ Data Tide has no account, analytics or tracking. Your usage log never leaves you
 | Service | When | What it sends |
 | --- | --- | --- |
 | [GitHub API](https://docs.github.com/rest/releases) | Update checks, and finding the driver installer when you click Install | Nothing besides the request |
+| [Cloudflare speed test](https://speed.cloudflare.com/) | Only when you run a speed test (or Detect without a previous test) | Test data only: about 20 seconds of downloads and uploads of random bytes |
 | [GitHub Releases of wiresock/ndisapi](https://github.com/wiresock/ndisapi/releases) | Only when you click **Install the driver** | Nothing besides the download |
 
 Turn off update checks for a fully offline app. To find the "Auto" interface Data Tide asks the Windows routing table which adapter would reach `1.1.1.1`; no packet is sent there. Speed limits read packet headers on your PC only to find which program a packet belongs to; nothing is stored or sent.
@@ -185,6 +192,8 @@ Developer switches:
 | --- | --- |
 | `--shots DIR` | Render the widget, flyout, settings, reports and sample PDFs from demo data |
 | `--render-icon DIR` | Regenerate `app.ico` and a 512 px PNG |
+| `--speedtest-probe OUT` | Run one speed test and write its progress and result to a file |
+| `--limiter-probe EXE BYTES SECONDS OUT` | Run the limiter elevated with one rule and log its status each second |
 | `--limiter PID PIPE` | The elevated limiter helper (started by the app, not by hand) |
 
 ## Releasing
@@ -218,6 +227,7 @@ The [release workflow](.github/workflows/release.yml) runs the tests, builds the
 - اختيار واجهة الشبكة أو الوضع التلقائي الذي يتبع الاتصال النشط
 - سجل يومي لاستهلاك كل واجهة على حدة، محفوظ على جهازك فقط
 - تقارير بالرسوم والجداول يمكن حفظها كصورة PNG أو ملف PDF
+- اختبار سرعة الإنترنت، وحساب مدة تنزيل ملف بحجم وسرعة معينين
 - تحديد سرعة التنزيل والرفع لكل برنامج (يتطلب برنامج التشغيل المجاني Windows Packet Filter)
 - واجهة عربية كاملة من اليمين إلى اليسار، ووضع داكن وفاتح يتبع ويندوز
 - تحديث تلقائي آمن من GitHub

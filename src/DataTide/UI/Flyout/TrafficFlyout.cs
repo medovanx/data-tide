@@ -11,9 +11,10 @@ sealed class TrafficFlyout : Form
     const int W = 360, HeaderH = 132, GraphH = 96, RowH = 30, MaxRows = 6;
 
     readonly DataTideApp app;
-    readonly IconButton btnReport = new(), btnLimits = new(), btnSettings = new();
+    readonly IconButton btnReport = new(), btnSpeed = new(), btnLimits = new(), btnSettings = new();
     /// <summary>Turns speed limits on or off right here, without opening Settings.</summary>
     readonly ToggleSwitch tglLimits = new();
+    readonly ToolTip tip = new();
     bool syncingToggle;
     bool dark, activated;
     public DateTime LastHidden { get; private set; }
@@ -30,9 +31,12 @@ sealed class TrafficFlyout : Form
         Text = L.T("AppName");
         Icon = app.AppIcon;
         btnReport.Glyph = Art.IconChart;
-        btnLimits.Glyph = Art.IconSpeed;
+        btnLimits.Glyph = Art.IconLimit;
         btnSettings.Glyph = Art.IconSettings;
-        Controls.AddRange([btnReport, btnLimits, btnSettings, tglLimits]);
+        btnSpeed.Glyph = Art.IconSpeed;
+        Controls.AddRange([btnReport, btnSpeed, btnLimits, btnSettings, tglLimits]);
+        btnSpeed.Click += (_, _) => { Hide(); app.ShowSpeedTest(); };
+        tip.SetToolTip(btnSettings, L.T("Settings"));
         tglLimits.CheckedChanged += (_, _) => { if (!syncingToggle) _ = ToggleLimitsAsync(tglLimits.Checked); };
         btnReport.Click += (_, _) => { Hide(); app.ShowReport(); };
         btnLimits.Click += (_, _) => { Hide(); app.ShowSettings(SettingsForm.LimitsPage); };
@@ -74,8 +78,9 @@ sealed class TrafficFlyout : Form
         BackColor = theme.Window;
         btnReport.Text = L.T("Report");
         btnLimits.Text = L.T("Limits");
-        btnSettings.Text = L.T("Settings");
-        foreach (var b in new[] { btnReport, btnLimits, btnSettings }) { b.Theme = theme; b.RightToLeft = RightToLeft; b.Invalidate(); }
+        btnSpeed.Text = L.T("SpeedTestShort");
+        btnSettings.Text = "";
+        foreach (var b in new[] { btnReport, btnSpeed, btnLimits, btnSettings }) { b.Theme = theme; b.RightToLeft = RightToLeft; b.Invalidate(); }
         btnReport.Primary = true;
         tglLimits.Theme = theme;
         SyncToggle();
@@ -103,8 +108,9 @@ sealed class TrafficFlyout : Form
         BackColor = theme.Window;
         btnReport.Text = L.T("Report");
         btnLimits.Text = L.T("Limits");
-        btnSettings.Text = L.T("Settings");
-        foreach (var b in new[] { btnReport, btnLimits, btnSettings }) { b.Theme = theme; b.RightToLeft = RightToLeft; }
+        btnSpeed.Text = L.T("SpeedTestShort");
+        btnSettings.Text = "";
+        foreach (var b in new[] { btnReport, btnSpeed, btnLimits, btnSettings }) { b.Theme = theme; b.RightToLeft = RightToLeft; }
         btnReport.Primary = true;
         tglLimits.Theme = theme;
         SyncToggle();
@@ -155,9 +161,16 @@ sealed class TrafficFlyout : Form
     void LayoutButtons()
     {
         int pad = Px(16), gap = Px(8), bh = Px(34);
-        int bw = (Width - pad * 2 - gap * 2) / 3, by = Height - pad - bh;
-        var order = L.Ar ? new[] { btnSettings, btnLimits, btnReport } : [btnReport, btnLimits, btnSettings];
-        for (int i = 0; i < 3; i++) order[i].Bounds = new Rectangle(pad + i * (bw + gap), by, bw, bh);
+        // Three labelled buttons and a square icon-only Settings button at the far end.
+        int sq = bh, bw = (Width - pad * 2 - gap * 3 - sq) / 3, by = Height - pad - bh;
+        var wide = new[] { btnReport, btnSpeed, btnLimits };
+        for (int i = 0; i < 3; i++)
+        {
+            int x = pad + i * (bw + gap);
+            wide[i].Bounds = new Rectangle(L.Ar ? Width - x - bw : x, by, bw, bh);
+        }
+        int sx = pad + 3 * (bw + gap);
+        btnSettings.Bounds = new Rectangle(L.Ar ? Width - sx - sq : sx, by, sq, bh);
         var ts = new Size(Px(44), Px(22));
         tglLimits.Bounds = new Rectangle(L.Ar ? pad : Width - pad - ts.Width, LimitsLineY + (Px(28) - ts.Height) / 2, ts.Width, ts.Height);
         tglLimits.RightToLeft = L.Ar ? RightToLeft.Yes : RightToLeft.No;
@@ -302,7 +315,7 @@ sealed class TrafficFlyout : Form
         using var fIcon = new Font(Art.IconFontName, 13f);
         int iconW = Px(24);
         var ir = new Rectangle(rtl ? Width - pad - iconW : pad, y, iconW, Px(28));
-        TextRenderer.DrawText(g, Art.IconSpeed, fIcon, ir, limC, TextFormatFlags.HorizontalCenter | TextFormatFlags.VerticalCenter);
+        TextRenderer.DrawText(g, Art.IconLimit, fIcon, ir, limC, TextFormatFlags.HorizontalCenter | TextFormatFlags.VerticalCenter);
         int toggleW = Px(54);
         var lr2 = rtl ? new Rectangle(pad + toggleW, y, Width - pad * 2 - iconW - Px(6) - toggleW, Px(28)) : new Rectangle(pad + iconW + Px(6), y, Width - pad * 2 - iconW - Px(6) - toggleW, Px(28));
         TextRenderer.DrawText(g, lim, fSmall, lr2, limC, near | TextFormatFlags.VerticalCenter | TextFormatFlags.EndEllipsis);

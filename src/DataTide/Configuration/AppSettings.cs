@@ -39,6 +39,9 @@ public sealed class AppSettings
     public bool AutoInstallUpdates { get; set; } = true;
     public DateTime LastUpdateCheckUtc { get; set; }
 
+    /// <summary>The last finished speed test, reused by Detect in the download-time calculator.</summary>
+    public SpeedTestResult? LastSpeedTest { get; set; }
+
     static readonly JsonSerializerOptions Json = new() { WriteIndented = true };
 
     public static AppSettings Load()

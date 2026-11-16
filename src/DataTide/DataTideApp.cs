@@ -199,6 +199,17 @@ sealed class DataTideApp : ApplicationContext
         settingsForm.Activate();
     }
 
+    SpeedTestForm? speedForm;
+
+    public void ShowSpeedTest()
+    {
+        flyout?.Hide();
+        if (speedForm is { IsDisposed: false }) { speedForm.Activate(); return; }
+        speedForm = new SpeedTestForm(this);
+        speedForm.Show();
+        speedForm.Activate();
+    }
+
     public void ShowReport()
     {
         flyout?.Hide();
@@ -325,6 +336,7 @@ sealed class DataTideApp : ApplicationContext
         menu.RightToLeft = L.Ar ? RightToLeft.Yes : RightToLeft.No;
         menu.Items.Add(L.T("ShowTraffic"), null, (_, _) => ShowFlyout()).Font = new Font(menu.Font, FontStyle.Bold);
         menu.Items.Add(L.T("UsageReport"), null, (_, _) => ShowReport());
+        menu.Items.Add(L.T("SpeedTest"), null, (_, _) => ShowSpeedTest());
         menu.Items.Add(L.T("SpeedLimits"), null, (_, _) => ShowSettings(SettingsForm.LimitsPage));
 
         var ifMenu = new ToolStripMenuItem(L.T("Interface"));

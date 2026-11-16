@@ -15,7 +15,9 @@ static class Art
     public const string IconSettings = "\uE713", IconChart = "\uE9D2", IconSpeed = "\uEC4A", IconNetwork = "\uE968",
                         IconUpdate = "\uE895", IconGeneral = "\uE771", IconAdd = "\uE710", IconDelete = "\uE74D",
                         IconSave = "\uE74E", IconPicture = "\uEB9F", IconDocument = "\uE8A5", IconShield = "\uEA18",
-                        IconOpen = "\uE8A7", IconApp = "\uECAA";
+                        IconOpen = "\uE8A7", IconApp = "\uECAA",
+                        // A funnel for speed limits (throttling); the speedometer belongs to the speed test.
+                        IconLimit = "\uE71C";
 
     public static readonly string IconFontName =
         new System.Drawing.Text.InstalledFontCollection().Families.Any(f => f.Name == "Segoe Fluent Icons")

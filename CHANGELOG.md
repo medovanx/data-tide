@@ -3,6 +3,18 @@
 All notable changes to Data Tide are listed here.
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and versions follow [Semantic Versioning](https://semver.org/).
 
+## [Unreleased]
+
+### Added
+- Speed test: ping, jitter, download and upload against Cloudflare's servers, with live tiles and a progress line. Open it from the flyout's Speed button or the right-click menu.
+- Download time calculator: file size and speed in, an estimate out. Detect fills in the last measured download speed, or runs a test first.
+
+### Changed
+- Speed limits use a funnel icon; the speedometer now means the speed test. Settings in the flyout is an icon-only button.
+
+### Fixed
+- The LICENSE no longer carries an audio credit copied from Salaty Reminder.
+
 ## [1.0.3] - 2026-11-16
 
 ### Fixed
