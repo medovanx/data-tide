@@ -240,7 +240,7 @@ sealed class TaskbarWidget : NativeWindow
     /// </summary>
     public static Bitmap Paint(string up, string down, bool hover, bool rtl, bool limited, bool dark, float s, int h)
     {
-        using var font = new Font("Segoe UI Semibold", 11.5f * s, GraphicsUnit.Pixel);
+        using var font = new Font("Segoe UI Semibold", 13.5f * s, GraphicsUnit.Pixel);
         float widest;
         using (var probe = new Bitmap(1, 1))
         using (var pg = Graphics.FromImage(probe))
@@ -248,7 +248,7 @@ sealed class TaskbarWidget : NativeWindow
             pg.TextRenderingHint = TextRenderingHint.AntiAliasGridFit;
             widest = new[] { "888.8 KB/s", "888.8 Mb/s", up, down }.Max(t => pg.MeasureString(t, font).Width);
         }
-        int pad = (int)(8 * s), arrow = (int)(10 * s), arrowGap = (int)(5 * s);
+        int pad = (int)(9 * s), arrow = (int)(11 * s), arrowGap = (int)(6 * s);
         int textW = (int)Math.Ceiling(widest);
         int w = pad + arrow + arrowGap + textW + pad;
 
