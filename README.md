@@ -31,6 +31,7 @@ as PNG or PDF, and can cap the download and upload speed of any program. English
 - **Pick the interface.** Auto follows the connection Windows uses to reach the internet (Wi-Fi, Ethernet, a VPN...) and switches by itself, or pin any adapter. Click the interface at the top of the flyout, or right-click the widget, to switch quickly.
 - **Monthly usage at a glance.** Rest the mouse on the widget to see today's and this month's data, split into download and upload.
 - **Traffic flyout.** Click the widget for big live speeds, a one-minute graph, this month's total and how much each interface used today.
+- **Which programs use your network.** The flyout lists the busiest programs live, with their download and upload speed and how much data each used today. It reads Windows' own kernel network events, like Task Manager, so it needs administrator rights once per session; nothing about it leaves your PC.
 - **Daily data log.** Every interface is logged separately, hour by hour, on your PC. Keep 90 days, about a year, or everything.
 - **Reports.** Today, the last 7 or 30 days, this or last month, or all time: totals, a stacked chart with one colour per interface, a table per interface and a day-by-day table. Every number says which interface it belongs to.
 - **Speed test.** Ping, jitter, download and upload against Cloudflare's servers, the way browser speed tests measure.
@@ -194,6 +195,7 @@ Developer switches:
 | `--shots DIR` | Render the widget, flyout, settings, reports and sample PDFs from demo data |
 | `--render-icon DIR` | Regenerate `app.ico` and a 512 px PNG |
 | `--toast-test` | Show one Windows notification, to check that notifications work |
+| `--monitor-probe OUT SECONDS` | Run elevated: write the busiest programs from kernel network events each second |
 | `--speedtest-probe OUT` | Run one speed test and write its progress and result to a file |
 | `--limiter-probe EXE BYTES SECONDS OUT` | Run the limiter elevated with one rule and log its status each second |
 | `--limiter PID PIPE` | The elevated limiter helper (started by the app, not by hand) |

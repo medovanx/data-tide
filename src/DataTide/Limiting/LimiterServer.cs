@@ -68,6 +68,9 @@ sealed class LimiterServer(LimiterEngine engine, int parentPid, string pipeName,
         }
     }
 
+    /// <summary>Per-program speeds from kernel network events, started by the "monitor" command.</summary>
+    public EtwNetworkMonitor? Monitor { get; private set; }
+
     string Handle(string line, out bool stop)
     {
         stop = false;
@@ -81,7 +84,15 @@ sealed class LimiterServer(LimiterEngine engine, int parentPid, string pipeName,
                 engine.Apply(req.Rules ?? []);
                 return Reply(true, null);
             case "status":
-                return JsonSerializer.Serialize(engine.Status(), LimiterJson.Options);
+            {
+                var st = engine.Status();
+                // Kernel events see every program on every adapter, limited or not: prefer them when running.
+                if (Monitor is { Running: true } m) st = st with { Processes = m.Snapshot() };
+                return JsonSerializer.Serialize(st, LimiterJson.Options);
+            }
+            case "monitor":
+                Monitor ??= new EtwNetworkMonitor();
+                return Monitor.Start() ? Reply(true, null) : Reply(false, Monitor.Error);
             case "stop":
                 stop = true;
                 return Reply(true, null);

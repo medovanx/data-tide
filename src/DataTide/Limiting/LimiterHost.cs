@@ -59,6 +59,7 @@ public static class LimiterHost
                 }
             }
             engine.Stop();
+            server.Monitor?.Dispose();
             try { serving.Wait(2000); }
             catch (AggregateException) { }
             return 0;

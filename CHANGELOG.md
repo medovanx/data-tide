@@ -3,6 +3,11 @@
 All notable changes to Data Tide are listed here.
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and versions follow [Semantic Versioning](https://semver.org/).
 
+## [Unreleased]
+
+### Added
+- Programs in the flyout: the busiest programs right now with their download and upload speed and today's data, from Windows' kernel network events (the source Task Manager uses). Turn it on from the flyout; it asks for administrator rights once per session and needs no driver.
+
 ## [1.1.1] - 2026-11-17
 
 ### Changed

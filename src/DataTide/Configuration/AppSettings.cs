@@ -31,6 +31,8 @@ public sealed class AppSettings
     public int KeepDays { get; set; } = 365;
 
     public bool LimitsEnabled { get; set; }
+    /// <summary>Show which programs use the network in the flyout (needs the elevated helper, so an admin prompt per session).</summary>
+    public bool ShowPrograms { get; set; }
     public List<LimitRule> Limits { get; set; } = [];
     /// <summary>Unit the Limits page shows speeds in; limits are stored in bytes per second either way.</summary>
     public RateUnit LimitUnit { get; set; } = RateUnit.KBps;

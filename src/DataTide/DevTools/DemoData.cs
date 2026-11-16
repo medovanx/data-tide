@@ -34,8 +34,18 @@ static class DemoData
         return l;
     }
 
+    /// <summary>Made-up programs for the flyout's Programs section.</summary>
+    public static List<ProgramUsage> Programs() =>
+    [
+        new(@"C:\Program Files\Example Launcher\launcher.exe", "Example Launcher", 5.2 * 1024 * 1024, 64 * 1024, 2_400_000_000),
+        new(@"C:\Program Files\Example Browserrowser.exe", "Example Browser", 1.1 * 1024 * 1024, 120 * 1024, 860_000_000),
+        new(@"C:\Program Files\Cloud Sync\sync.exe", "Cloud Sync", 12 * 1024, 410 * 1024, 310_000_000),
+        new(@"C:\Program Files\Chat\chat.exe", "Chat", 34 * 1024, 18 * 1024, 95_000_000),
+    ];
+
     public static AppSettings Settings(string lang) => new()
     {
+        ShowPrograms = true,
         Language = lang,
         InterfaceId = AppSettings.AutoInterface,
         LimitsEnabled = true,

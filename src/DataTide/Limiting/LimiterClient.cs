@@ -108,6 +108,15 @@ public static class LimiterClient
         return line != null && Parse<LimiterReply>(line)?.Ok == true;
     }
 
+    /// <summary>Asks the helper to start per-program monitoring from kernel network events; null on success, else the reason.</summary>
+    public static async Task<string?> MonitorAsync()
+    {
+        string? line = await RequestAsync(new LimiterRequest { Cmd = "monitor" }).ConfigureAwait(false);
+        if (line == null) return "The helper is not reachable.";
+        var r = Parse<LimiterReply>(line);
+        return r?.Ok == true ? null : r?.Error ?? "Monitoring could not start.";
+    }
+
     public static async Task<LimiterStatus?> StatusAsync()
     {
         string? line = await RequestAsync(new LimiterRequest { Cmd = "status" }).ConfigureAwait(false);

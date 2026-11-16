@@ -102,6 +102,7 @@ sealed class DataTideApp : ApplicationContext
 
         if (S.LimitsEnabled && S.Limits.Any(r => r.Enabled) && LimiterClient.DriverInstalled)
             _ = StartLimitsAsync(userInitiated: false);
+        if (S.ShowPrograms) _ = StartProgramsAsync();
     }
 
     static Icon LoadIcon()
@@ -123,6 +124,7 @@ sealed class DataTideApp : ApplicationContext
             Ledger.Prune(now.Date.AddDays(-S.KeepDays));
         }
         if (ticks % 10 == 1) RefreshTotals();
+        if (S.ShowPrograms && ticks % 2 == 0) _ = PollProgramsAsync();
         Ticked?.Invoke();
     }
 
@@ -149,6 +151,7 @@ sealed class DataTideApp : ApplicationContext
     /// <summary>Fills the live numbers with made-up values for screenshots.</summary>
     public void Demo(string interfaceName, IEnumerable<(double down, double up)> minute)
     {
+        Programs = DemoData.Programs();
         History.Clear();
         foreach (var (d, u) in minute) { History.Add(d, u); Down = d; Up = u; }
         ShownInterfaceId = "demo-eth";
@@ -269,9 +272,89 @@ sealed class DataTideApp : ApplicationContext
     public async Task<string> SyncLimitsAsync()
     {
         if (S.LimitsEnabled && S.Limits.Any(r => r.Enabled)) return await StartLimitsAsync(userInitiated: true);
-        if (LimiterClient.HelperRunning) await LimiterClient.StopAsync();
+        if (LimiterClient.HelperRunning)
+        {
+            // The helper also feeds the Programs list: keep it, just without rules, while that is shown.
+            if (S.ShowPrograms) await LimiterClient.ApplyAsync([]);
+            else await LimiterClient.StopAsync();
+        }
         UpdateWidget();
         return "";
+    }
+
+    // ---------- programs ----------
+
+    /// <summary>Busiest programs right now, merged by name, with today's data since monitoring began.</summary>
+    public IReadOnlyList<ProgramUsage> Programs { get; private set; } = [];
+    /// <summary>Why the Programs list can't show, or null.</summary>
+    public string? ProgramsError { get; private set; }
+    public bool ProgramsStarting { get; private set; }
+
+    readonly Dictionary<string, double> programToday = new(StringComparer.OrdinalIgnoreCase);
+    DateOnly programDay = DateOnly.FromDateTime(DateTime.Now);
+    DateTime lastPoll = DateTime.MinValue;
+    bool polling;
+
+    /// <summary>Starts the elevated helper if needed (one admin prompt) and its kernel network monitor.</summary>
+    public async Task StartProgramsAsync()
+    {
+        if (ProgramsStarting) return;
+        ProgramsStarting = true;
+        ProgramsError = null;
+        try
+        {
+            if (!LimiterClient.HelperRunning && !await LimiterClient.StartAsync())
+            {
+                ProgramsError = L.T("ProgramsDeclined");
+                return;
+            }
+            ProgramsError = await LimiterClient.MonitorAsync();
+            if (ProgramsError == null && !S.LimitsEnabled) await LimiterClient.ApplyAsync([]);
+            if (ProgramsError == null) await PollProgramsAsync();
+        }
+        finally { ProgramsStarting = false; }
+    }
+
+    public async Task SetShowProgramsAsync(bool on)
+    {
+        S.ShowPrograms = on;
+        S.Save();
+        if (on) { await StartProgramsAsync(); return; }
+        Programs = [];
+        if (LimiterClient.HelperRunning && !(S.LimitsEnabled && S.Limits.Any(r => r.Enabled))) await LimiterClient.StopAsync();
+    }
+
+    async Task PollProgramsAsync()
+    {
+        if (polling || !LimiterClient.HelperRunning) return;
+        polling = true;
+        try
+        {
+            var st = await LimiterClient.StatusAsync();
+            if (st == null) return;
+            var now = DateTime.Now;
+            var day = DateOnly.FromDateTime(now);
+            if (day != programDay) { programToday.Clear(); programDay = day; }
+            double dt = lastPoll == DateTime.MinValue ? 0 : Math.Min(10, (now - lastPoll).TotalSeconds);
+            lastPoll = now;
+            // Several exes can share a name (two copies of one app): show them as one row.
+            var merged = st.Processes
+                .GroupBy(p => ProgramNames.For(p.ExePath), StringComparer.CurrentCultureIgnoreCase)
+                .Select(g => (name: g.Key, path: g.First().ExePath, down: g.Sum(p => p.DownBytesPerSecond), up: g.Sum(p => p.UpBytesPerSecond)))
+                .ToList();
+            foreach (var m in merged)
+            {
+                programToday.TryGetValue(m.name, out var b);
+                programToday[m.name] = b + (m.down + m.up) * dt;
+            }
+            Programs = merged
+                .Select(m => new ProgramUsage(m.path, m.name, m.down, m.up, (long)programToday.GetValueOrDefault(m.name)))
+                .Where(p => p.Down + p.Up > 0 || p.Today > 0)
+                .OrderByDescending(p => p.Down + p.Up).ThenByDescending(p => p.Today)
+                .ToList();
+        }
+        catch (Exception ex) { Log.Error(ex); }
+        finally { polling = false; }
     }
 
     // ---------- updates ----------

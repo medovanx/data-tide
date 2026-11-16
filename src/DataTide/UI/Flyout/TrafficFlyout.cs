@@ -69,7 +69,15 @@ sealed class TrafficFlyout : Form
             .OrderByDescending(d => d.Total).Take(MaxRows).ToList();
     }
 
-    int ContentHeight(int rows) => HeaderH + 14 + GraphH + 18 + 26 + 34 + Math.Max(1, rows) * RowH + 4 + 28 + 10 + 34 + 16;
+    const int MaxPrograms = 5;
+
+    /// <summary>Rows the Programs section takes: the busiest programs, or one row with a message or the button that turns it on.</summary>
+    int ProgramRows => app.S.ShowPrograms && app.ProgramsError == null ? Math.Clamp(app.Programs.Count, 1, MaxPrograms) : 1;
+
+    int ContentHeight(int rows) => HeaderH + 14 + GraphH + 18 + 26 + 34 + Math.Max(1, rows) * RowH
+        + 10 + 26 + ProgramRows * RowH + 4 + 28 + 10 + 34 + 16;
+
+    Rectangle enableProgramsRect, hideProgramsRect;
 
     public void ShowNear(Rectangle anchor)
     {
@@ -201,9 +209,21 @@ sealed class TrafficFlyout : Form
     protected override void OnMouseMove(MouseEventArgs e)
     {
         base.OnMouseMove(e);
-        bool over = pillRect.Contains(e.Location);
+        bool over = pillRect.Contains(e.Location) || enableProgramsRect.Contains(e.Location) || hideProgramsRect.Contains(e.Location);
         Cursor = over ? Cursors.Hand : Cursors.Default;
         Invalidate(pillRect);
+    }
+
+    async Task TurnProgramsAsync(bool on)
+    {
+        // Turning it on shows the admin prompt; keep the flyout open while Windows asks.
+        menuOpen = true;
+        var task = app.SetShowProgramsAsync(on);
+        Invalidate();
+        await task;
+        menuOpen = false;
+        Invalidate();
+        if (Visible) Activate();
     }
 
     protected override void OnMouseLeave(EventArgs e)
@@ -215,7 +235,10 @@ sealed class TrafficFlyout : Form
     protected override void OnMouseClick(MouseEventArgs e)
     {
         base.OnMouseClick(e);
-        if (e.Button == MouseButtons.Left && pillRect.Contains(e.Location)) ShowInterfaceMenu();
+        if (e.Button != MouseButtons.Left) return;
+        if (pillRect.Contains(e.Location)) ShowInterfaceMenu();
+        else if (enableProgramsRect.Contains(e.Location)) _ = TurnProgramsAsync(true);
+        else if (hideProgramsRect.Contains(e.Location)) _ = TurnProgramsAsync(false);
     }
 
     /// <summary>Auto plus every connected adapter, with a check on the current choice; picking one switches the widget.</summary>
@@ -383,6 +406,79 @@ sealed class TrafficFlyout : Form
             var amt = rtl ? new Rectangle(inner.Left, inner.Top, amountW, inner.Height) : new Rectangle(inner.Right - amountW, inner.Top, amountW, inner.Height);
             DrawAmounts(g, amt, r.Received, r.Sent, fSmall, t, rtl);
             y += Px(RowH);
+        }
+
+        // Programs: who is using the network right now.
+        y += Px(10);
+        {
+            var titleR = new Rectangle(pad, y, Width - pad * 2, Px(22));
+            TextRenderer.DrawText(g, L.T("ProgramsNow"), fName, titleR, t.Text, near);
+            hideProgramsRect = Rectangle.Empty;
+            if (app.S.ShowPrograms)
+            {
+                string hide = L.T("HidePrograms");
+                Size hs = TextRenderer.MeasureText(hide, fSmall);
+                hideProgramsRect = new Rectangle(rtl ? pad : Width - pad - hs.Width, y, hs.Width, Px(22));
+                bool hideHot = hideProgramsRect.Contains(PointToClient(Cursor.Position));
+                using var fLink = new Font(fSmall, hideHot ? FontStyle.Underline : FontStyle.Regular);
+                TextRenderer.DrawText(g, hide, fLink, hideProgramsRect, t.Accent, TextFormatFlags.VerticalCenter);
+            }
+            y += Px(26);
+            enableProgramsRect = Rectangle.Empty;
+            var first = new Rectangle(pad, y, Width - pad * 2, Px(RowH) - Px(4));
+            if (!app.S.ShowPrograms || app.ProgramsError != null)
+            {
+                // One button-like row that turns the list on (after the admin prompt).
+                enableProgramsRect = first;
+                bool enableHot = first.Contains(PointToClient(Cursor.Position));
+                Art.FillRound(g, first, Px(6), Color.FromArgb(enableHot ? (t.Dark ? 50 : 34) : (t.Dark ? 30 : 18), t.Accent));
+                string msg = app.ProgramsError ?? L.T("ShowPrograms");
+                Art.GlyphCentered(g, "\uE7EF", 10 * S, new RectangleF(rtl ? first.Right - Px(28) : first.Left + Px(6), first.Top, Px(22), first.Height), t.Accent);
+                var mr = rtl ? new Rectangle(first.Left + Px(8), first.Top, first.Width - Px(40), first.Height) : new Rectangle(first.Left + Px(32), first.Top, first.Width - Px(40), first.Height);
+                TextRenderer.DrawText(g, msg, fSmall, mr, app.ProgramsError != null ? t.Up : t.Text, near | TextFormatFlags.VerticalCenter | TextFormatFlags.EndEllipsis);
+                y += Px(RowH);
+            }
+            else if (app.Programs.Count == 0)
+            {
+                TextRenderer.DrawText(g, app.ProgramsStarting ? L.T("ProgramsStarting") : L.T("LiveQuiet"), fSmall, first, t.Dim, near | TextFormatFlags.VerticalCenter);
+                y += Px(RowH);
+            }
+            else
+            {
+                foreach (var p in app.Programs.Take(MaxPrograms))
+                {
+                    var rr = new Rectangle(pad, y, Width - pad * 2, Px(RowH) - Px(4));
+                    Art.FillRound(g, rr, Px(6), t.Surface);
+                    var inner = Rectangle.Inflate(rr, -Px(8), 0);
+                    int icon = Px(16);
+                    if (ProgramIcons.For(p.Path) is { } img)
+                    {
+                        g.InterpolationMode = System.Drawing.Drawing2D.InterpolationMode.HighQualityBicubic;
+                        g.DrawImage(img, new Rectangle(rtl ? inner.Right - icon : inner.Left, rr.Top + (rr.Height - icon) / 2, icon, icon));
+                    }
+                    // Columns from the far edge: today's total, upload speed, download speed; the name takes the rest.
+                    int totalW = Px(56), speedW = Px(70);
+                    int X(int fromFar, int w) => rtl ? inner.Left + fromFar : inner.Right - fromFar - w;
+                    var totalR = new Rectangle(X(0, totalW), rr.Top, totalW, rr.Height);
+                    TextRenderer.DrawText(g, ByteFormat.Size(p.Today), fSmall, totalR, t.Dim, (rtl ? TextFormatFlags.Left : TextFormatFlags.Right) | TextFormatFlags.VerticalCenter);
+                    void ProgSpeed(int col, bool up, double v)
+                    {
+                        var box = new Rectangle(X(totalW + Px(4) + col * speedW, speedW), rr.Top, speedW, rr.Height);
+                        string text = ByteFormat.Rate(v);
+                        Size vs = TextRenderer.MeasureText(text, fSmall);
+                        int a = Px(8);
+                        int vx = rtl ? box.Left + a + Px(3) : box.Right - vs.Width;
+                        Art.Arrow(g, new RectangleF(rtl ? box.Left : vx - a - Px(3), rr.Top + (rr.Height - a) / 2f, a, a), up, up ? t.Up : t.Down);
+                        TextRenderer.DrawText(g, text, fSmall, new Rectangle(vx, rr.Top, vs.Width + 2, rr.Height), v > 0 ? t.Text : t.Dim, TextFormatFlags.VerticalCenter | TextFormatFlags.Left);
+                    }
+                    ProgSpeed(0, true, p.Up);
+                    ProgSpeed(1, false, p.Down);
+                    int nameStart = icon + Px(8), nameW = inner.Width - nameStart - totalW - Px(4) - speedW * 2 - Px(4);
+                    var nr = rtl ? new Rectangle(inner.Right - nameStart - nameW, rr.Top, nameW, rr.Height) : new Rectangle(inner.Left + nameStart, rr.Top, nameW, rr.Height);
+                    TextRenderer.DrawText(g, p.Name, fSmall, nr, t.Text, near | TextFormatFlags.VerticalCenter | TextFormatFlags.EndEllipsis);
+                    y += Px(RowH);
+                }
+            }
         }
 
         // Limits line, with its on/off switch at the far edge.
