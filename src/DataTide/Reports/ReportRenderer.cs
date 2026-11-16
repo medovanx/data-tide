@@ -157,10 +157,19 @@ sealed class ReportRenderer
             var box = new RectangleF(X(i * (tw + gap), tw), y + P(12), tw, P(80));
             Art.FillRound(g, box, P(12), t.Surface);
             using (var p = Art.RoundRect(box, P(12))) using (var pen = new Pen(t.Border, Math.Max(1, s))) g.DrawPath(pen, p);
-            var bar = new RectangleF(rtl ? box.Right - P(4) - P(14) : box.Left + P(14), box.Top + P(16), P(4), P(48));
-            Art.FillRound(g, bar, P(2), tiles[i].accent);
-            var inner = new RectangleF(rtl ? box.Left + P(12) : box.Left + P(28), box.Top, box.Width - P(40), box.Height);
-            Text(g, tiles[i].label, fLabel, new RectangleF(inner.X, box.Top + P(14), inner.Width, P(20)), t.Dim);
+            // No accent bars: download and upload carry the widget's arrow beside their label, the rest stay plain.
+            var inner = new RectangleF(box.Left + P(18), box.Top, box.Width - P(36), box.Height);
+            float labelShift = 0;
+            if (i is 1 or 2)
+            {
+                float a = P(11);
+                float ax = rtl ? inner.Right - a : inner.Left;
+                Art.Arrow(g, new RectangleF(ax, box.Top + P(14) + (P(20) - a) / 2, a, a), i == 2, tiles[i].accent);
+                labelShift = a + P(6);
+            }
+            var labelBox = rtl ? new RectangleF(inner.X, box.Top + P(14), inner.Width - labelShift, P(20))
+                               : new RectangleF(inner.X + labelShift, box.Top + P(14), inner.Width - labelShift, P(20));
+            Text(g, tiles[i].label, fLabel, labelBox, t.Dim);
             Text(g, tiles[i].value, fValue, new RectangleF(inner.X, box.Top + P(36), inner.Width, P(32)), t.Text, ltr: true);
         }
     }
