@@ -120,6 +120,9 @@ public static class L
         ["UpLimitTip"] = ("Upload limit (0 = no limit)", "حد الرفع (0 = بلا حد)"),
         ["LimitUnits"] = ("Show limits in", "عرض الحدود بوحدة"),
         ["MoreOptions"] = ("More options", "خيارات أخرى"),
+        ["LimitTo"] = ("Limit to {0}", "تحديد بـ {0}"),
+        ["Unblock"] = ("Unblock", "إلغاء الحظر"),
+        ["RemoveLimit"] = ("Remove limit", "إزالة الحد"),
         ["BlockAll"] = ("Block all traffic", "حظر كل حركة البيانات"),
         ["LimitInstead"] = ("Limit speed instead", "تحديد السرعة بدلًا من الحظر"),
         ["PauseRule"] = ("Pause", "إيقاف مؤقت"),
@@ -218,6 +221,9 @@ public static class L
     };
 
     public static string T(string key) => D.TryGetValue(key, out var v) ? (Ar ? v.ar : v.en) : key;
+
+    /// <summary>Keeps a number with its unit ("2 MB/s") whole and left to right inside Arabic text.</summary>
+    public static string Ltr(string s) => "‎" + s + "‎";
 
     public static string F(string key, params object[] args) => string.Format(Culture, T(key), args);
 

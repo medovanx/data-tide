@@ -7,6 +7,7 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and 
 
 ### Added
 - Programs in the flyout: the busiest programs right now with their download and upload speed and today's data, from Windows' kernel network events (the source Task Manager uses). Turn it on from the flyout; it asks for administrator rights once per session and needs no driver.
+- Click a program in the flyout to limit it (2 MB/s, 512 KB/s, 128 KB/s), block it, pause or remove its rule, or open the full options. A badge on its icon shows a rule: amber limited, red blocked, grey paused.
 
 ## [1.1.1] - 2026-11-17
 

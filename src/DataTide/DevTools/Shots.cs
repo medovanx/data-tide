@@ -37,6 +37,24 @@ static class Shots
                 pb.Save(Path.Combine(dir, $"picker-{lang}-{(dk ? "dark" : "light")}.png"), ImageFormat.Png);
                 pick.Dispose();
             }
+            {
+                var acts = new PopupList([
+                    new("limit:2097152", L.F("LimitTo", L.Ltr(ByteFormat.Rate(2097152))), Current: true, Glyph: Art.IconLimit),
+                    new("limit:524288", L.F("LimitTo", L.Ltr(ByteFormat.Rate(524288))), Glyph: Art.IconLimit),
+                    new("limit:131072", L.F("LimitTo", L.Ltr(ByteFormat.Rate(131072))), Glyph: Art.IconLimit),
+                    PopupList.Item.Separator,
+                    new("block", L.T("BlockAll"), Danger: true, Glyph: ""),
+                    new("pause", L.T("PauseRule"), Glyph: ""),
+                    new("remove", L.T("RemoveLimit"), Glyph: Art.IconDelete),
+                    PopupList.Item.Separator,
+                    new("more", L.T("MoreOptions"), Glyph: Art.IconSettings)], new Theme(true), "Example Launcher")
+                    { RightToLeft = lang == "ar" ? RightToLeft.Yes : RightToLeft.No };
+                acts.Size = acts.Preferred(230);
+                using var ab = new Bitmap(acts.Width, acts.Height);
+                acts.DrawToBitmap(ab, new Rectangle(Point.Empty, acts.Size));
+                ab.Save(Path.Combine(dir, $"actions-{lang}.png"), ImageFormat.Png);
+                acts.Dispose();
+            }
             var tip = new HoverTip();
             tip.ShowForShot(app, true);
             SaveControl(tip, Path.Combine(dir, $"hover-{lang}.png"), rounded: true);

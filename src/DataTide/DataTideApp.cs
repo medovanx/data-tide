@@ -213,6 +213,39 @@ sealed class DataTideApp : ApplicationContext
         reportForm.Activate();
     }
 
+    /// <summary>The enabled-or-paused rule for a program, if any.</summary>
+    public LimitRule? RuleFor(string exePath) =>
+        S.Limits.FirstOrDefault(r => string.Equals(r.ExePath, exePath, StringComparison.OrdinalIgnoreCase));
+
+    /// <summary>
+    /// A quick change from the flyout: "limit:BYTES", "block", "unblock", "pause", "remove". Saves, turns limits on
+    /// when a rule needs them, and applies at once. Returns a status line, empty on success.
+    /// </summary>
+    public async Task<string> ChangeRuleAsync(string exePath, string action)
+    {
+        var s = S.Clone();
+        var rule = s.Limits.FirstOrDefault(r => string.Equals(r.ExePath, exePath, StringComparison.OrdinalIgnoreCase));
+        if (rule == null && action is not ("remove" or "pause" or "unblock"))
+            s.Limits.Add(rule = new LimitRule { ExePath = exePath });
+        if (rule != null)
+            switch (action)
+            {
+                case var a when a.StartsWith("limit:", StringComparison.Ordinal) && long.TryParse(a[6..], out long b):
+                    rule.Block = false; rule.Enabled = true; rule.DownBytesPerSecond = rule.UpBytesPerSecond = b; break;
+                case "block": rule.Block = true; rule.Enabled = true; break;
+                case "unblock": rule.Block = false; break;
+                case "pause": rule.Enabled = !rule.Enabled; break;
+                case "remove": s.Limits.Remove(rule); break;
+            }
+        // Unblocking a rule that never had speeds leaves nothing to limit: drop it.
+        if (rule is { Block: false } && rule.DownBytesPerSecond == 0 && rule.UpBytesPerSecond == 0) s.Limits.Remove(rule);
+        if (s.Limits.Any(r => r.Enabled)) s.LimitsEnabled = true;
+        S = s;
+        S.Save();
+        UpdateWidget();
+        return await SyncLimitsAsync();
+    }
+
     public void ApplySettings(AppSettings s)
     {
         bool langChanged = s.Language != S.Language;

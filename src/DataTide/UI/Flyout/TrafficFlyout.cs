@@ -78,6 +78,8 @@ sealed class TrafficFlyout : Form
         + 10 + 26 + ProgramRows * RowH + 4 + 28 + 10 + 34 + 16;
 
     Rectangle enableProgramsRect, hideProgramsRect;
+    /// <summary>Program rows as drawn, so a click opens that program's actions.</summary>
+    readonly List<(Rectangle rect, ProgramUsage program)> programRects = [];
 
     public void ShowNear(Rectangle anchor)
     {
@@ -209,7 +211,9 @@ sealed class TrafficFlyout : Form
     protected override void OnMouseMove(MouseEventArgs e)
     {
         base.OnMouseMove(e);
-        bool over = pillRect.Contains(e.Location) || enableProgramsRect.Contains(e.Location) || hideProgramsRect.Contains(e.Location);
+        bool over = pillRect.Contains(e.Location) || enableProgramsRect.Contains(e.Location) || hideProgramsRect.Contains(e.Location)
+                    || programRects.Any(r => r.rect.Contains(e.Location));
+        if (programRects.Count > 0) Invalidate(); // row hover highlight
         Cursor = over ? Cursors.Hand : Cursors.Default;
         Invalidate(pillRect);
     }
@@ -239,6 +243,7 @@ sealed class TrafficFlyout : Form
         if (pillRect.Contains(e.Location)) ShowInterfaceMenu();
         else if (enableProgramsRect.Contains(e.Location)) _ = TurnProgramsAsync(true);
         else if (hideProgramsRect.Contains(e.Location)) _ = TurnProgramsAsync(false);
+        else if (programRects.FirstOrDefault(r => r.rect.Contains(e.Location)) is { program: not null } hit) ShowProgramActions(hit.program, hit.rect);
     }
 
     /// <summary>Auto plus every connected adapter, with a check on the current choice; picking one switches the widget.</summary>
@@ -280,6 +285,58 @@ sealed class TrafficFlyout : Form
     }
 
     /// <summary>A one-pixel border in the theme around the popup.</summary>
+    /// <summary>Quick limit, block, pause and remove for one program, applied at once.</summary>
+    void ShowProgramActions(ProgramUsage p, Rectangle row)
+    {
+        var t = new Theme(dark);
+        var rule = app.RuleFor(p.Path);
+        long[] presets = [2048 * 1024, 512 * 1024, 128 * 1024];
+        var items = new List<PopupList.Item>();
+        foreach (var b in presets)
+            items.Add(new($"limit:{b}", L.F("LimitTo", L.Ltr(ByteFormat.Rate(b))), null,
+                Current: rule is { Block: false } && rule.DownBytesPerSecond == b && rule.UpBytesPerSecond == b, Glyph: Art.IconLimit));
+        items.Add(PopupList.Item.Separator);
+        items.Add(rule is { Block: true }
+            ? new("unblock", L.T("Unblock"), Glyph: "\uE785")
+            : new("block", L.T("BlockAll"), Danger: true, Glyph: "\uF140"));
+        if (rule != null)
+        {
+            items.Add(new("pause", rule.Enabled ? L.T("PauseRule") : L.T("ResumeRule"), Glyph: rule.Enabled ? "\uE769" : "\uE768"));
+            items.Add(new("remove", L.T("RemoveLimit"), Glyph: Art.IconDelete));
+        }
+        items.Add(PopupList.Item.Separator);
+        items.Add(new("more", L.T("MoreOptions"), Glyph: Art.IconSettings));
+
+        var list = new PopupList(items, t, p.Name) { RightToLeft = RightToLeft, Font = Font };
+        list.Size = list.Preferred(Px(230));
+        var host = new ToolStripControlHost(list) { Margin = Padding.Empty, Padding = Padding.Empty, AutoSize = false, Size = list.Size };
+        var popup = new ToolStripDropDown { Padding = Padding.Empty, DropShadowEnabled = true, BackColor = t.Surface, Renderer = new PopupBorder(t) };
+        popup.Items.Add(host);
+        list.Picked += async id =>
+        {
+            popup.Close();
+            if (id == "more") { Hide(); app.ShowSettings(SettingsForm.LimitsPage); return; }
+            menuOpen = true; // the admin prompt for the helper must not close the flyout
+            string msg = await app.ChangeRuleAsync(p.Path, id);
+            menuOpen = false;
+            if (msg.Length > 0 && !LimiterClient.DriverInstalled) { Hide(); app.ShowSettings(SettingsForm.LimitsPage); return; }
+            Invalidate();
+            if (Visible) Activate();
+        };
+        menuOpen = true;
+        popup.Opened += (_, _) => Native.RoundCorners(popup.Handle, dark);
+        popup.Closed += (_, _) =>
+        {
+            menuOpen = false;
+            BeginInvoke(popup.Dispose);
+            Invalidate();
+        };
+        // Above the row when there is no room below it.
+        int yBelow = row.Bottom + Px(4);
+        var at = new Point(rtl ? row.Left : row.Right - list.Width, yBelow + list.Height > Height ? row.Top - list.Height - Px(4) : yBelow);
+        popup.Show(this, at);
+    }
+
     sealed class PopupBorder(Theme t) : ToolStripRenderer
     {
         protected override void OnRenderToolStripBorder(ToolStripRenderEventArgs e)
@@ -425,6 +482,7 @@ sealed class TrafficFlyout : Form
             }
             y += Px(26);
             enableProgramsRect = Rectangle.Empty;
+            programRects.Clear();
             var first = new Rectangle(pad, y, Width - pad * 2, Px(RowH) - Px(4));
             if (!app.S.ShowPrograms || app.ProgramsError != null)
             {
@@ -445,16 +503,31 @@ sealed class TrafficFlyout : Form
             }
             else
             {
+                var mouse = PointToClient(Cursor.Position);
                 foreach (var p in app.Programs.Take(MaxPrograms))
                 {
                     var rr = new Rectangle(pad, y, Width - pad * 2, Px(RowH) - Px(4));
-                    Art.FillRound(g, rr, Px(6), t.Surface);
+                    programRects.Add((rr, p));
+                    bool rowHot = rr.Contains(mouse);
+                    Art.FillRound(g, rr, Px(6), rowHot ? Color.FromArgb(t.Dark ? 40 : 24, t.Accent) : t.Surface);
                     var inner = Rectangle.Inflate(rr, -Px(8), 0);
                     int icon = Px(16);
+                    var iconR = new Rectangle(rtl ? inner.Right - icon : inner.Left, rr.Top + (rr.Height - icon) / 2, icon, icon);
                     if (ProgramIcons.For(p.Path) is { } img)
                     {
                         g.InterpolationMode = System.Drawing.Drawing2D.InterpolationMode.HighQualityBicubic;
-                        g.DrawImage(img, new Rectangle(rtl ? inner.Right - icon : inner.Left, rr.Top + (rr.Height - icon) / 2, icon, icon));
+                        g.DrawImage(img, iconR);
+                    }
+                    // A rule for this program: a badge on its icon (amber limited, red blocked, grey paused).
+                    if (app.RuleFor(p.Path) is { } rule)
+                    {
+                        Color bc = !rule.Enabled ? t.Dim : rule.Block ? Color.FromArgb(232, 72, 85) : t.Up;
+                        float d = 7 * S;
+                        float bx = rtl ? iconR.Left - 2 * S : iconR.Right - d + 2 * S, by = iconR.Bottom - d + 2 * S;
+                        using (var ring = new SolidBrush(rowHot ? Color.FromArgb(t.Dark ? 52 : 228, t.Dark ? 70 : 238, t.Dark ? 84 : 247) : t.Surface))
+                            g.FillEllipse(ring, bx - S, by - S, d + 2 * S, d + 2 * S);
+                        using var bb = new SolidBrush(bc);
+                        g.FillEllipse(bb, bx, by, d, d);
                     }
                     // Columns from the far edge: today's total, upload speed, download speed; the name takes the rest.
                     int totalW = Px(56), speedW = Px(70);
