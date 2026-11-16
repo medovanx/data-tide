@@ -222,35 +222,49 @@ sealed class TrafficFlyout : Form
     void ShowInterfaceMenu()
     {
         var t = new Theme(dark);
-        var menu = new ContextMenuStrip { Renderer = new ThemedMenuRenderer(t), RightToLeft = RightToLeft, ShowCheckMargin = true, ShowImageMargin = false };
-        void Add(string id, string text, bool live)
-        {
-            var item = new ToolStripMenuItem(text) { Checked = app.S.InterfaceId == id, ForeColor = t.Text };
-            if (live) item.Font = new Font(menu.Font, FontStyle.Bold);
-            item.Click += (_, _) =>
-            {
-                var s = app.S.Clone();
-                s.InterfaceId = id;
-                app.ApplySettings(s);
-                Invalidate();
-            };
-            menu.Items.Add(item);
-        }
         string? routeId = app.Monitor.DefaultInterfaceId();
-        Add(AppSettings.AutoInterface, L.T("AutoInterface"), false);
-        menu.Items.Add(new ToolStripSeparator());
+        var items = new List<InterfacePicker.Item>
+        {
+            new(AppSettings.AutoInterface, L.T("Auto"), L.T("AutoShort"), false),
+        };
         foreach (var (id, name, _, up) in app.Monitor.All().Where(i => i.up && (app.S.LogVirtual || !app.Monitor.IsVirtual(i.id))))
-            Add(id, id == routeId ? $"{name}  ({L.T("Internet")})" : name, id == routeId);
+            items.Add(new(id, name, null, id == routeId));
+
+        var list = new InterfacePicker(items, app.S.InterfaceId, t) { RightToLeft = RightToLeft, Font = Font };
+        list.Size = list.Preferred(Px(250));
+        var host = new ToolStripControlHost(list) { Margin = Padding.Empty, Padding = Padding.Empty, AutoSize = false, Size = list.Size };
+        var popup = new ToolStripDropDown { Padding = Padding.Empty, DropShadowEnabled = true, BackColor = t.Surface, Renderer = new PopupBorder(t) };
+        popup.Items.Add(host);
+        list.Picked += id =>
+        {
+            popup.Close();
+            var s = app.S.Clone();
+            s.InterfaceId = id;
+            app.ApplySettings(s);
+            Invalidate();
+        };
         menuOpen = true;
-        menu.Closed += (_, _) =>
+        popup.Opened += (_, _) => Native.RoundCorners(popup.Handle, dark);
+        popup.Closed += (_, _) =>
         {
             menuOpen = false;
             Invalidate();
-            BeginInvoke(menu.Dispose);
+            BeginInvoke(popup.Dispose); // WinForms still touches it right after Closed
             if (Visible) Activate();
         };
-        menu.Show(this, new Point(rtl ? pillRect.Left : pillRect.Right, pillRect.Bottom + Px(4)),
-            rtl ? ToolStripDropDownDirection.BelowRight : ToolStripDropDownDirection.BelowLeft);
+        var at = new Point(rtl ? pillRect.Left : pillRect.Right - list.Width, pillRect.Bottom + Px(6));
+        popup.Show(this, at);
+    }
+
+    /// <summary>A one-pixel border in the theme around the popup.</summary>
+    sealed class PopupBorder(Theme t) : ToolStripRenderer
+    {
+        protected override void OnRenderToolStripBorder(ToolStripRenderEventArgs e)
+        {
+            using var pen = new Pen(t.Border);
+            e.Graphics.DrawRectangle(pen, 0, 0, e.ToolStrip.Width - 1, e.ToolStrip.Height - 1);
+        }
+        protected override void OnRenderToolStripBackground(ToolStripRenderEventArgs e) => e.Graphics.Clear(t.Surface);
     }
 
     bool rtl => L.Ar;

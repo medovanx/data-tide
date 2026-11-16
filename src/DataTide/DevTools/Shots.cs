@@ -24,6 +24,19 @@ static class Shots
             WidgetStrip(Path.Combine(dir, $"widget-{lang}.png"), app.Rate(app.Up), app.Rate(app.Down), lang == "ar");
             WidgetStrip(Path.Combine(dir, $"widget-limited-{lang}.png"), app.Rate(app.Up), app.Rate(app.Down), lang == "ar", limited: true);
             app.RefreshTotals();
+            foreach (var dk in new[] { true, false })
+            {
+                var pick = new InterfacePicker([
+                    new(AppSettings.AutoInterface, L.T("Auto"), L.T("AutoShort"), false),
+                    new("demo-eth", DemoData.Interfaces[0], null, true),
+                    new("demo-wifi", DemoData.Interfaces[1], null, false)], AppSettings.AutoInterface, new Theme(dk))
+                    { RightToLeft = lang == "ar" ? RightToLeft.Yes : RightToLeft.No };
+                pick.Size = pick.Preferred(250);
+                using var pb = new Bitmap(pick.Width, pick.Height);
+                pick.DrawToBitmap(pb, new Rectangle(Point.Empty, pick.Size));
+                pb.Save(Path.Combine(dir, $"picker-{lang}-{(dk ? "dark" : "light")}.png"), ImageFormat.Png);
+                pick.Dispose();
+            }
             var tip = new HoverTip();
             tip.ShowForShot(app, true);
             SaveControl(tip, Path.Combine(dir, $"hover-{lang}.png"), rounded: true);

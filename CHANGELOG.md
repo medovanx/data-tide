@@ -3,6 +3,11 @@
 All notable changes to Data Tide are listed here.
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and versions follow [Semantic Versioning](https://semver.org/).
 
+## [Unreleased]
+
+### Changed
+- The interface list in the flyout is drawn in the app's own style (rounded, accent marker, an Internet tag) instead of a stock menu.
+
 ## [1.1.0] - 2026-11-17
 
 ### Added
