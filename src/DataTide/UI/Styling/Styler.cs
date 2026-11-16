@@ -30,6 +30,7 @@ static class Styler
                     l.ForeColor = l.Tag as string == "dim" ? t.Dim : t.Text; l.BackColor = Color.Transparent; break;
                 case ToggleSwitch ts: ts.Theme = t; break;
                 case ThemedCombo tc: tc.Theme = t; break;
+                case ArrowGlyph ag: ag.Theme = t; break;
                 case ThemedNumber tn: tn.Theme = t; break;
                 case ThemedText tt: tt.Theme = t; break;
                 case Segmented sg: sg.Theme = t; break;

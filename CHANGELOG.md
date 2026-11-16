@@ -24,6 +24,7 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and 
 - Hovering the widget shows today's and this month's usage, and the flyout shows this month's total.
 - Program icons in the speed limits list and the program picker, which now lists apps with a window first under their real names.
 - A switch in the flyout turns speed limits on or off without opening Settings.
+- Each limit has its own unit (KB/s, MB/s or Mb/s), and the limits list uses the widget's arrows.
 - One-click driver install: downloads the official Windows Packet Filter installer from NT Kernel's GitHub release, checks its SHA-256 and runs it.
 
 [1.0.0]: https://github.com/medovanx/data-tide/releases/tag/v1.0.0
