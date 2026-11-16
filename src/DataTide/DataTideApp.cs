@@ -22,7 +22,6 @@ sealed class DataTideApp : ApplicationContext
     readonly InterfaceSampler sampler = new();
     readonly HostWindow host;
     readonly TaskbarWidget widget = new();
-    readonly NotifyIcon tray;
     readonly ContextMenuStrip menu = new();
     readonly System.Windows.Forms.Timer timer = new() { Interval = 1000 };
     readonly System.Windows.Forms.Timer updateTimer = new() { Interval = 45_000 };
@@ -64,16 +63,10 @@ sealed class DataTideApp : ApplicationContext
 
         host = new HostWindow(this);
         menu.Opening += (_, e) => { BuildMenu(); e.Cancel = false; };
-        tray = new NotifyIcon
-        {
-            Icon = new Icon(AppIcon, SystemInformation.SmallIconSize),
-            Text = L.T("AppName"),
-            ContextMenuStrip = menu,
-            Visible = !Headless,
-        };
+        // No tray icon: the widget is the app's surface (click, hover, right-click), messages go out as Windows notifications.
         if (Headless) return;
+        Toasts.Register();
 
-        tray.MouseClick += (_, e) => { if (e.Button == MouseButtons.Left) ToggleFlyout(); };
         widget.Clicked += () => { hoverTip.Cancel(); ToggleFlyout(); };
         widget.HoverChanged += over =>
         {
@@ -103,7 +96,7 @@ sealed class DataTideApp : ApplicationContext
 
         Updater.CleanupOld();
         if (Environment.GetCommandLineArgs().Contains("--updated"))
-            tray.ShowBalloonTip(6000, L.T("AppName"), L.F("Updated", Updater.CurrentText), ToolTipIcon.Info);
+            Toasts.Show(L.T("AppName"), L.F("Updated", Updater.CurrentText));
         updateTimer.Tick += async (_, _) => { updateTimer.Interval = 6 * 3600 * 1000; await CheckForUpdatesAsync(false); };
         updateTimer.Start(); // first check 45 s after start, then every 6 hours
 
@@ -168,8 +161,6 @@ sealed class DataTideApp : ApplicationContext
     {
         bool limited = S.LimitsEnabled && LimiterClient.HelperRunning;
         widget.SetContent(Rate(Up), Rate(Down), L.Ar, limited);
-        var tip = $"{L.T("AppName")}: {ShownInterfaceName}\n{L.T("Download")} {Rate(Down)}\n{L.T("Upload")} {Rate(Up)}";
-        tray.Text = tip.Length <= 127 ? tip : tip[..127];
     }
 
     // ---------- windows ----------
@@ -249,7 +240,7 @@ sealed class DataTideApp : ApplicationContext
         if (!LimiterClient.HelperRunning && !await LimiterClient.StartAsync())
         {
             if (userInitiated) return L.T("LimiterDeclined");
-            tray.ShowBalloonTip(8000, L.T("AppName"), L.T("LimiterDeclined"), ToolTipIcon.Warning);
+            Toasts.Show(L.T("AppName"), L.T("LimiterDeclined"));
             return L.T("LimiterDeclined");
         }
         bool ok = await LimiterClient.ApplyAsync(S.Limits.Where(r => r.Enabled).ToList());
@@ -310,7 +301,7 @@ sealed class DataTideApp : ApplicationContext
             _ = InstallUpdateAsync(rel);
             return L.F("Updating", ver);
         }
-        tray.ShowBalloonTip(10000, L.T("AppName"), L.F("UpdateAvailable", ver), ToolTipIcon.Info);
+        Toasts.Show(L.T("AppName"), L.F("UpdateAvailable", ver));
         return L.F("UpdateAvailable", ver);
     }
 
@@ -318,7 +309,7 @@ sealed class DataTideApp : ApplicationContext
     {
         if (installing) return;
         installing = true;
-        tray.ShowBalloonTip(4000, L.T("AppName"), L.F("Updating", rel.Version.ToString(3)), ToolTipIcon.Info);
+        Toasts.Show(L.T("AppName"), L.F("Updating", rel.Version.ToString(3)));
         UsageStore.Save(Ledger);
         if (await Updater.InstallAsync(rel))
         {
@@ -326,7 +317,7 @@ sealed class DataTideApp : ApplicationContext
             return;
         }
         installing = false;
-        tray.ShowBalloonTip(8000, L.T("AppName"), L.T("UpdateFailed"), ToolTipIcon.Warning);
+        Toasts.Show(L.T("AppName"), L.T("UpdateFailed"));
         Updater.OpenPage(rel.PageUrl);
     }
 
@@ -356,7 +347,7 @@ sealed class DataTideApp : ApplicationContext
         menu.Items.Add(L.T("CheckForUpdates"), null, async (_, _) =>
         {
             var msg = await CheckForUpdatesAsync(userInitiated: true);
-            if (!installing) tray.ShowBalloonTip(6000, L.T("AppName"), msg, ToolTipIcon.Info);
+            if (!installing) Toasts.Show(L.T("AppName"), msg);
         });
         var startup = new ToolStripMenuItem(L.T("StartWithWindows")) { Checked = AppSettings.StartWithWindows };
         startup.Click += (_, _) => { try { AppSettings.StartWithWindows = !startup.Checked; } catch { } };
@@ -381,8 +372,6 @@ sealed class DataTideApp : ApplicationContext
         UsageStore.Save(Ledger);
         if (LimiterClient.HelperRunning)
             try { LimiterClient.StopAsync().Wait(2000); } catch { }
-        tray.Visible = false;
-        tray.Dispose();
         if (widget.Handle != IntPtr.Zero) widget.DestroyHandle();
         ExitThread();
     }

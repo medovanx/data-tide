@@ -39,6 +39,7 @@ as PNG or PDF, and can cap the download and upload speed of any program. English
 - **Per-app speed limits.** Cap the download and upload speed of any program, for example a game launcher or a cloud sync app, while everything else runs at full speed. See [Speed limits](#speed-limits).
 - **English and Arabic.** Full right-to-left layout in Arabic. Light and dark theme follow Windows.
 - **Auto-updates.** Checks GitHub Releases, verifies the download's SHA-256 and updates itself in place.
+- **No tray icon.** The widget is the whole app: click it, hover it, right-click it. Messages such as updates arrive as normal Windows notifications.
 - **Light and native.** One small Windows app, no Electron, no ads, no account.
 
 ## Screenshots
@@ -192,6 +193,7 @@ Developer switches:
 | --- | --- |
 | `--shots DIR` | Render the widget, flyout, settings, reports and sample PDFs from demo data |
 | `--render-icon DIR` | Regenerate `app.ico` and a 512 px PNG |
+| `--toast-test` | Show one Windows notification, to check that notifications work |
 | `--speedtest-probe OUT` | Run one speed test and write its progress and result to a file |
 | `--limiter-probe EXE BYTES SECONDS OUT` | Run the limiter elevated with one rule and log its status each second |
 | `--limiter PID PIPE` | The elevated limiter helper (started by the app, not by hand) |

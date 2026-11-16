@@ -10,6 +10,7 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and 
 - Download time calculator: file size and speed in, an estimate out. Detect fills in the last measured download speed, or runs a test first.
 
 ### Changed
+- No more tray icon: the widget already opens the flyout (click), shows usage (hover) and has the menu (right-click). Update and limiter messages are Windows notifications with Data Tide's name and icon.
 - The interface in the flyout header is a picker: click it to switch between Auto and any connected adapter; the one carrying the internet is marked.
 - Speed limits use a funnel icon; the speedometer now means the speed test. Settings in the flyout is an icon-only button.
 

@@ -12,6 +12,13 @@ static class Program
             return LimiterProbe.Run(args);
         if (args.Length > 1 && args[0] == "--speedtest-probe")
             return SpeedTestProbe.Run(args[1]);
+        if (args.Length > 0 && args[0] == "--toast-test")
+        {
+            // Shows one notification, to check the app id registration without waiting for a real event.
+            Toasts.Show(L.T("AppName"), "Notifications work.");
+            Thread.Sleep(1500);
+            return 0;
+        }
         if (args.Length > 1 && args[0] == "--shots")
             return Shots.Run(args[1]);
         if (args.Length > 1 && args[0] == "--render-icon")
