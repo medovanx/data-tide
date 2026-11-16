@@ -257,18 +257,18 @@ sealed class TaskbarWidget : NativeWindow
             g.TextRenderingHint = TextRenderingHint.AntiAliasGridFit; // grayscale AA: correct on per-pixel alpha
             g.Clear(Color.FromArgb(1, 0, 0, 0)); // alpha 1 keeps the whole box clickable
 
-            if (hover || limited)
+            // Soft sea-blue pill like Salaty Reminder's, brighter on hover; an amber edge while limits are active.
             {
                 var box = new RectangleF(1, 4 * s, w - 2, h - 8 * s);
-                int a = hover ? (dark ? 60 : 45) : (dark ? 26 : 18);
+                int a1 = hover ? (dark ? 95 : 70) : (dark ? 55 : 40);
+                int a2 = hover ? (dark ? 70 : 50) : (dark ? 30 : 22);
                 using var path = Art.RoundRect(box, 6 * s);
-                using var bg = new LinearGradientBrush(box, Color.FromArgb(a, Art.SeaLight), Color.FromArgb(a * 2 / 3, Art.SeaDark), LinearGradientMode.ForwardDiagonal);
+                using var bg = new LinearGradientBrush(box, Color.FromArgb(a1, Art.SeaLight), Color.FromArgb(a2, Art.SeaDark), LinearGradientMode.ForwardDiagonal);
                 g.FillPath(bg, path);
-                if (limited)
-                {
-                    using var edge = new Pen(Color.FromArgb(dark ? 70 : 60, Art.UpGlow), Math.Max(1f, s));
-                    g.DrawPath(edge, path);
-                }
+                using var edge = limited
+                    ? new Pen(Color.FromArgb(dark ? 110 : 90, Art.UpGlow), Math.Max(1f, s))
+                    : new Pen(Color.FromArgb(dark ? 40 : 30, dark ? Color.White : Art.SeaDark), Math.Max(1f, s));
+                g.DrawPath(edge, path);
             }
 
             Color upC = dark ? Art.UpGlow : Color.FromArgb(200, 110, 0);
