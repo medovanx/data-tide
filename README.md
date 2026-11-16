@@ -29,7 +29,8 @@ as PNG or PDF, and can cap the download and upload speed of any program. English
 
 - **Lives in the taskbar.** Upload over download, embedded right next to the notification area. It takes the nearest free spot, so it never covers other taskbar tools such as TrafficMonitor or Salaty Reminder, hides with the taskbar in fullscreen apps and comes back after Explorer restarts.
 - **Pick the interface.** Auto follows the connection Windows uses to reach the internet (Wi-Fi, Ethernet, a VPN...) and switches by itself, or pin any adapter. Right-click the widget to switch quickly.
-- **Traffic flyout.** Click the widget for big live speeds, a one-minute graph and how much each interface used today.
+- **Monthly usage at a glance.** Rest the mouse on the widget to see today's and this month's data, split into download and upload.
+- **Traffic flyout.** Click the widget for big live speeds, a one-minute graph, this month's total and how much each interface used today.
 - **Daily data log.** Every interface is logged separately, hour by hour, on your PC. Keep 90 days, about a year, or everything.
 - **Reports.** Today, the last 7 or 30 days, this or last month, or all time: totals, a stacked chart with one colour per interface, a table per interface and a day-by-day table. Every number says which interface it belongs to.
 - **Export.** Save any report as a crisp PNG or a multi-page A4 PDF, in English or Arabic.
@@ -91,6 +92,7 @@ Notes:
 
 | Action | What happens |
 | --- | --- |
+| Hover over the widget | Today's and this month's usage |
 | Click the widget | Opens the traffic flyout |
 | Right-click the widget | Menu: traffic, usage report, speed limits, interface, settings, updates, start with Windows, exit |
 | Report window | Pick a range and an interface, then **Save PNG** or **Save PDF** |

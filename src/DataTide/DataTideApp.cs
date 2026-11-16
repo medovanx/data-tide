@@ -27,6 +27,7 @@ sealed class DataTideApp : ApplicationContext
     readonly System.Windows.Forms.Timer timer = new() { Interval = 1000 };
     readonly System.Windows.Forms.Timer updateTimer = new() { Interval = 45_000 };
     TrafficFlyout? flyout;
+    readonly HoverTip hoverTip = new();
     SettingsForm? settingsForm;
     ReportForm? reportForm;
     DateTime lastSave = DateTime.Now, lastPrune = DateTime.MinValue;
@@ -36,6 +37,20 @@ sealed class DataTideApp : ApplicationContext
     public bool Headless { get; }
 
     public event Action? Ticked;
+
+    /// <summary>Bytes received and sent today and this month on the logged interfaces (refreshed every 10 s).</summary>
+    public (long rx, long tx) TodayTotal { get; private set; }
+    public (long rx, long tx) MonthTotal { get; private set; }
+
+    public void RefreshTotals()
+    {
+        var today = DateOnly.FromDateTime(DateTime.Now);
+        var month = Ledger.Days(new DateOnly(today.Year, today.Month, 1), today)
+            .Where(d => S.LogVirtual || !Monitor.IsVirtual(d.InterfaceId)).ToList();
+        MonthTotal = (month.Sum(d => d.Received), month.Sum(d => d.Sent));
+        var day = month.Where(d => d.Date == today).ToList();
+        TodayTotal = (day.Sum(d => d.Received), day.Sum(d => d.Sent));
+    }
 
     public DataTideApp(AppSettings? settings = null, UsageLedger? ledger = null)
     {
@@ -59,7 +74,14 @@ sealed class DataTideApp : ApplicationContext
         if (Headless) return;
 
         tray.MouseClick += (_, e) => { if (e.Button == MouseButtons.Left) ToggleFlyout(); };
-        widget.Clicked += ToggleFlyout;
+        widget.Clicked += () => { hoverTip.Hide(); ToggleFlyout(); };
+        widget.HoverChanged += over =>
+        {
+            if (!over) { hoverTip.Cancel(); return; }
+            if (flyout?.Visible == true) return;
+            RefreshTotals();
+            hoverTip.ShowSoon(this, widget.ScreenBounds);
+        };
         widget.RightClicked += () =>
         {
             Native.SetForegroundWindow(host.Handle);
@@ -107,6 +129,7 @@ sealed class DataTideApp : ApplicationContext
             lastPrune = now;
             Ledger.Prune(now.Date.AddDays(-S.KeepDays));
         }
+        if (ticks % 10 == 1) RefreshTotals();
         Ticked?.Invoke();
     }
 

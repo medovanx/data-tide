@@ -17,6 +17,8 @@ sealed class TaskbarWidget : NativeWindow
     const int WM_MOUSEMOVE = 0x200, WM_LBUTTONUP = 0x202, WM_RBUTTONUP = 0x205, WM_MOUSELEAVE = 0x2A3, WM_MOUSEACTIVATE = 0x21;
 
     public event Action? Clicked;
+    /// <summary>True when the mouse enters the widget, false when it leaves.</summary>
+    public event Action<bool>? HoverChanged;
     public event Action? RightClicked;
 
     IntPtr tray;
@@ -299,12 +301,14 @@ sealed class TaskbarWidget : NativeWindow
                 return;
             case WM_MOUSEMOVE when !hover:
                 hover = true;
+                HoverChanged?.Invoke(true);
                 var tme = new TRACKMOUSEEVENT { cbSize = System.Runtime.InteropServices.Marshal.SizeOf<TRACKMOUSEEVENT>(), dwFlags = 2 /* TME_LEAVE */, hwndTrack = Handle };
                 TrackMouseEvent(ref tme);
                 Render();
                 break;
             case WM_MOUSELEAVE:
                 hover = false;
+                HoverChanged?.Invoke(false);
                 Render();
                 break;
             case WM_LBUTTONUP:

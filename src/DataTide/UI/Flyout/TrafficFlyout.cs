@@ -59,10 +59,11 @@ sealed class TrafficFlyout : Form
             .OrderByDescending(d => d.Total).Take(MaxRows).ToList();
     }
 
-    int ContentHeight(int rows) => HeaderH + 14 + GraphH + 18 + 26 + Math.Max(1, rows) * RowH + 34 + 16 + 34 + 16;
+    int ContentHeight(int rows) => HeaderH + 14 + GraphH + 18 + 26 + 34 + Math.Max(1, rows) * RowH + 34 + 16 + 34 + 16;
 
     public void ShowNear(Rectangle anchor)
     {
+        app.RefreshTotals();
         dark = Native.SystemDark();
         var theme = new Theme(dark);
         RightToLeft = L.Ar ? RightToLeft.Yes : RightToLeft.No;
@@ -204,8 +205,22 @@ sealed class TrafficFlyout : Form
         string peak = $"{L.T("Peak")} \u200e{app.Rate(app.History.Peak)}"; // the mark keeps "6.98 MB/s" in order in Arabic
         TextRenderer.DrawText(g, peak, fLabel, new Rectangle(gr.Left + Px(10), gr.Top + Px(4), gr.Width - Px(20), Px(16)), t.Dim, far);
 
-        // Today per interface.
+        // This month, all logged interfaces together.
         int y = gr.Bottom + Px(18);
+        {
+            var mr = new Rectangle(pad, y, Width - pad * 2, Px(30));
+            Art.FillRound(g, mr, Px(6), Color.FromArgb(t.Dark ? 34 : 22, t.Accent));
+            var inner = Rectangle.Inflate(mr, -Px(10), 0);
+            int amountW = Px(170);
+            var labelR = rtl ? new Rectangle(inner.Right - (inner.Width - amountW), inner.Top, inner.Width - amountW, inner.Height) : new Rectangle(inner.Left, inner.Top, inner.Width - amountW, inner.Height);
+            string label = $"{L.T("ThisMonth")}  \u200E{ByteFormat.Size(app.MonthTotal.rx + app.MonthTotal.tx)}";
+            TextRenderer.DrawText(g, label, fName, labelR, t.Text, near | TextFormatFlags.VerticalCenter | TextFormatFlags.EndEllipsis);
+            var amt = rtl ? new Rectangle(inner.Left, inner.Top, amountW, inner.Height) : new Rectangle(inner.Right - amountW, inner.Top, amountW, inner.Height);
+            DrawAmounts(g, amt, app.MonthTotal.rx, app.MonthTotal.tx, fSmall, t, rtl);
+            y += Px(34);
+        }
+
+        // Today per interface.
         TextRenderer.DrawText(g, L.T("TodayUsage"), fName, new Rectangle(pad, y, Width - pad * 2, Px(22)), t.Text, near);
         y += Px(26);
         var rows = TodayRows();

@@ -21,5 +21,6 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and 
 - Virtual adapters (VPNs, Hyper-V and WSL switches, virtual machines) are left out of the log by default, since their traffic also crosses a real adapter. A switch in Settings includes them.
 - History can be kept for 1 week up to 5 years, forever, or any number of days.
 - Closing a dropdown could crash the app on the next click.
+- Hovering the widget shows today's and this month's usage, and the flyout shows this month's total.
 
 [1.0.0]: https://github.com/medovanx/data-tide/releases/tag/v1.0.0

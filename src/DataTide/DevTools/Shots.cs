@@ -22,6 +22,11 @@ static class Shots
             app.Demo(DemoData.Interfaces[0], DemoData.Minute());
 
             WidgetStrip(Path.Combine(dir, $"widget-{lang}.png"), app.Rate(app.Up), app.Rate(app.Down), lang == "ar");
+            app.RefreshTotals();
+            var tip = new HoverTip();
+            tip.ShowForShot(app, true);
+            SaveControl(tip, Path.Combine(dir, $"hover-{lang}.png"), rounded: true);
+            tip.Dispose();
 
             foreach (var dark in new[] { true, false })
             {

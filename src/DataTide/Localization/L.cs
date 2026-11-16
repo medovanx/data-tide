@@ -29,6 +29,8 @@ public static class L
         ["Peak"] = ("Peak", "الذروة"),
         ["Auto"] = ("Auto", "تلقائي"),
         ["NoInterface"] = ("No connection", "لا يوجد اتصال"),
+        ["ThisMonth"] = ("This month", "هذا الشهر"),
+        ["Today"] = ("Today", "اليوم"),
         ["TodayUsage"] = ("Used today", "استهلاك اليوم"),
         ["NothingYet"] = ("Nothing logged yet today.", "لم يُسجَّل أي استهلاك اليوم بعد."),
         ["LoggingOff"] = ("Usage logging is off.", "تسجيل الاستهلاك متوقف."),
