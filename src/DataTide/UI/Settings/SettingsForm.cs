@@ -19,7 +19,8 @@ sealed class SettingsForm : Form
     // Network
     readonly ThemedCombo cmbIface = Combo(300), cmbKeep = Combo();
     readonly ToggleSwitch tglLog = new(), tglVirtual = new();
-    readonly Button btnFolder = new() { AutoSize = true, Height = 30 }, btnClear = new() { AutoSize = true, Height = 30 };
+    // The app's own drawn buttons: stock ones paint disabled text in Windows' dark grey, which looks black in the dark theme.
+    readonly IconButton btnFolder = Btn(), btnClear = Btn();
     readonly List<string> ifaceIds = [];
     readonly ThemedNumber numKeep = new() { Minimum = 1, Maximum = 36500, Width = 120, Increment = 30 };
     Control keepCustomRow = null!;
@@ -29,7 +30,7 @@ sealed class SettingsForm : Form
     readonly ToggleSwitch tglLimits = new();
     readonly FlowLayoutPanel rulesPanel = new() { FlowDirection = FlowDirection.TopDown, WrapContents = false, AutoSize = true, Margin = Padding.Empty };
     readonly ThemedCombo cmbProcs = Combo(300);
-    readonly Button btnAddProc = new() { AutoSize = true, Height = 30 }, btnBrowse = new() { AutoSize = true, Height = 30 }, btnDriver = new() { AutoSize = true, Height = 30 }, btnDriverPage = new() { AutoSize = true, Height = 30 };
+    readonly IconButton btnAddProc = Btn(), btnBrowse = Btn(), btnDriver = Btn(), btnDriverPage = Btn();
     readonly Label lblDriverProgress = new() { AutoSize = true, Tag = "dim", MaximumSize = new Size(490, 0), Margin = new Padding(0, 6, 0, 0) };
     readonly Label lblDriver = new() { AutoSize = true, MaximumSize = new Size(490, 0), Margin = new Padding(0, 0, 0, 8) };
     readonly Segmented segUnits = new("KB/s", "MB/s", "Mb/s") { Width = 210 };
@@ -41,7 +42,7 @@ sealed class SettingsForm : Form
     readonly System.Windows.Forms.Timer liveTimer = new() { Interval = 1500 };
     // Updates
     readonly ToggleSwitch tglAutoCheck = new(), tglAutoInstall = new();
-    readonly Button btnCheck = new() { AutoSize = true, Height = 30 };
+    readonly IconButton btnCheck = Btn();
     readonly IconButton btnGitHub = new() { Width = 150, Height = 32, Glyph = Art.IconOpen }, btnNotes = new() { Width = 150, Height = 32, Glyph = Art.IconDocument };
     readonly Label lblUpdate = new() { AutoSize = true, Tag = "dim", MaximumSize = new Size(440, 0) };
 
@@ -93,6 +94,13 @@ sealed class SettingsForm : Form
 
         Styler.Apply(this, t);
         Styler.Primary(btnSave, t);
+        btnDriver.Primary = true;
+        foreach (var b in new[] { btnFolder, btnClear, btnAddProc, btnBrowse, btnDriver, btnDriverPage, btnCheck })
+        {
+            b.Theme = t;
+            b.RightToLeft = RightToLeft;
+            b.Width = TextRenderer.MeasureText(b.Text, b.Font).Width + 30;
+        }
         ShowPage(0);
         SyncEnabled();
         liveTimer.Tick += async (_, _) => await RefreshLiveAsync();
@@ -413,6 +421,8 @@ sealed class SettingsForm : Form
     }
 
     // ---------- layout helpers ----------
+
+    static IconButton Btn() => new() { Height = 30, Font = new Font("Segoe UI", 9.5f) };
 
     static ThemedCombo Combo(int width = 220) => new() { Width = width };
     static ThemedNumber Num(int min, int max) => new() { Minimum = min, Maximum = max, Width = 120 };

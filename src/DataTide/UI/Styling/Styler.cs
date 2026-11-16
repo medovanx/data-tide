@@ -22,6 +22,7 @@ static class Styler
                     b.FlatAppearance.BorderColor = t.Border;
                     b.BackColor = t.Input; b.ForeColor = t.Text;
                     b.FlatAppearance.MouseOverBackColor = t.Dark ? Color.FromArgb(64, 68, 68) : Color.FromArgb(236, 240, 239);
+                    b.FlatAppearance.MouseDownBackColor = t.Dark ? Color.FromArgb(40, 43, 46) : Color.FromArgb(225, 229, 233);
                     b.Cursor = Cursors.Hand;
                     break;
                 case Label l when l.Tag as string == "keep":
@@ -81,6 +82,7 @@ static class Styler
         b.ForeColor = Color.White;
         b.FlatAppearance.BorderColor = t.AccentFill;
         b.FlatAppearance.MouseOverBackColor = t.AccentHover;
+        b.FlatAppearance.MouseDownBackColor = t.AccentFill;
         b.Font = new Font("Segoe UI Semibold", 9.5f);
     }
 }
