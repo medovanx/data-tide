@@ -3,7 +3,7 @@
 All notable changes to Data Tide are listed here.
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and versions follow [Semantic Versioning](https://semver.org/).
 
-## [Unreleased]
+## [1.2.0] - 2026-11-17
 
 ### Added
 - Programs in the flyout: the busiest programs right now with their download and upload speed and today's data, from Windows' kernel network events (the source Task Manager uses). Turn it on from the flyout; it asks for administrator rights once per session and needs no driver.
@@ -74,6 +74,7 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and 
 - A small amber dot on the widget replaces the outline while limits are active.
 - One-click driver install: downloads the official Windows Packet Filter installer from NT Kernel's GitHub release, checks its SHA-256 and runs it.
 
+[1.2.0]: https://github.com/medovanx/data-tide/releases/tag/v1.2.0
 [1.1.1]: https://github.com/medovanx/data-tide/releases/tag/v1.1.1
 [1.1.0]: https://github.com/medovanx/data-tide/releases/tag/v1.1.0
 [1.0.3]: https://github.com/medovanx/data-tide/releases/tag/v1.0.3
