@@ -12,6 +12,9 @@ sealed class TrafficFlyout : Form
 
     readonly DataTideApp app;
     readonly IconButton btnReport = new(), btnLimits = new(), btnSettings = new();
+    /// <summary>Turns speed limits on or off right here, without opening Settings.</summary>
+    readonly ToggleSwitch tglLimits = new();
+    bool syncingToggle;
     bool dark, activated;
     public DateTime LastHidden { get; private set; }
 
@@ -29,12 +32,13 @@ sealed class TrafficFlyout : Form
         btnReport.Glyph = Art.IconChart;
         btnLimits.Glyph = Art.IconSpeed;
         btnSettings.Glyph = Art.IconSettings;
-        Controls.AddRange([btnReport, btnLimits, btnSettings]);
+        Controls.AddRange([btnReport, btnLimits, btnSettings, tglLimits]);
+        tglLimits.CheckedChanged += (_, _) => { if (!syncingToggle) _ = ToggleLimitsAsync(tglLimits.Checked); };
         btnReport.Click += (_, _) => { Hide(); app.ShowReport(); };
         btnLimits.Click += (_, _) => { Hide(); app.ShowSettings(SettingsForm.LimitsPage); };
         btnSettings.Click += (_, _) => { Hide(); app.ShowSettings(); };
         KeyDown += (_, e) => { if (e.KeyCode == Keys.Escape) Hide(); };
-        app.Ticked += () => { if (Visible) Invalidate(); };
+        app.Ticked += () => { if (Visible) { if (tglLimits.Enabled) SyncToggle(); Invalidate(); } };
     }
 
     protected override CreateParams CreateParams
@@ -73,6 +77,8 @@ sealed class TrafficFlyout : Form
         btnSettings.Text = L.T("Settings");
         foreach (var b in new[] { btnReport, btnLimits, btnSettings }) { b.Theme = theme; b.RightToLeft = RightToLeft; b.Invalidate(); }
         btnReport.Primary = true;
+        tglLimits.Theme = theme;
+        SyncToggle();
 
         var wa = Screen.FromRectangle(anchor).WorkingArea;
         Size = new Size(Px(W), Px(ContentHeight(TodayRows().Count)));
@@ -100,6 +106,8 @@ sealed class TrafficFlyout : Form
         btnSettings.Text = L.T("Settings");
         foreach (var b in new[] { btnReport, btnLimits, btnSettings }) { b.Theme = theme; b.RightToLeft = RightToLeft; }
         btnReport.Primary = true;
+        tglLimits.Theme = theme;
+        SyncToggle();
         Location = new Point(-4000, -4000);
         Size = new Size(Px(W), Px(ContentHeight(TodayRows().Count)));
         LayoutButtons();
@@ -115,12 +123,44 @@ sealed class TrafficFlyout : Form
 
     protected override bool ShowWithoutActivation => app.Headless;
 
+    /// <summary>Top of the speed limits line: just above the buttons.</summary>
+    int LimitsLineY => Height - Px(96);
+
+    void SyncToggle()
+    {
+        syncingToggle = true;
+        tglLimits.Checked = app.S.LimitsEnabled && HasRules;
+        syncingToggle = false;
+    }
+
+    bool HasRules => app.S.Limits.Any(l => l.Enabled && (l.DownBytesPerSecond > 0 || l.UpBytesPerSecond > 0));
+
+    async Task ToggleLimitsAsync(bool on)
+    {
+        // Nothing to switch on yet: take the user to where programs and the driver are set up.
+        if (on && (!HasRules || !LimiterClient.DriverInstalled))
+        {
+            SyncToggle();
+            Hide();
+            app.ShowSettings(SettingsForm.LimitsPage);
+            return;
+        }
+        tglLimits.Enabled = false;
+        await app.SetLimitsEnabledAsync(on); // turning on shows the admin prompt once per session
+        tglLimits.Enabled = true;
+        SyncToggle();
+        Invalidate();
+    }
+
     void LayoutButtons()
     {
         int pad = Px(16), gap = Px(8), bh = Px(34);
         int bw = (Width - pad * 2 - gap * 2) / 3, by = Height - pad - bh;
         var order = L.Ar ? new[] { btnSettings, btnLimits, btnReport } : [btnReport, btnLimits, btnSettings];
         for (int i = 0; i < 3; i++) order[i].Bounds = new Rectangle(pad + i * (bw + gap), by, bw, bh);
+        var ts = new Size(Px(44), Px(22));
+        tglLimits.Bounds = new Rectangle(L.Ar ? pad : Width - pad - ts.Width, LimitsLineY + (Px(24) - ts.Height) / 2, ts.Width, ts.Height);
+        tglLimits.RightToLeft = L.Ar ? RightToLeft.Yes : RightToLeft.No;
     }
 
     /// <summary>Keeps the height in step with the number of interfaces that moved data today.</summary>
@@ -243,8 +283,8 @@ sealed class TrafficFlyout : Form
             y += Px(RowH);
         }
 
-        // Limits line.
-        y += Px(4);
+        // Limits line, with its on/off switch at the far edge.
+        y = LimitsLineY;
         int limitedCount = app.S.Limits.Count(l => l.Enabled && (l.DownBytesPerSecond > 0 || l.UpBytesPerSecond > 0));
         string lim = !app.S.LimitsEnabled || limitedCount == 0 ? L.T("LimitsOff")
                    : LimiterClient.HelperRunning ? L.F("LimitsOn", limitedCount) : L.T("LimitsPaused");
@@ -253,7 +293,8 @@ sealed class TrafficFlyout : Form
         int iconW = Px(18);
         var ir = new Rectangle(rtl ? Width - pad - iconW : pad, y, iconW, Px(24));
         TextRenderer.DrawText(g, Art.IconSpeed, fIcon, ir, limC, TextFormatFlags.HorizontalCenter | TextFormatFlags.VerticalCenter);
-        var lr2 = rtl ? new Rectangle(pad, y, Width - pad * 2 - iconW - Px(6), Px(24)) : new Rectangle(pad + iconW + Px(6), y, Width - pad * 2 - iconW - Px(6), Px(24));
+        int toggleW = Px(54);
+        var lr2 = rtl ? new Rectangle(pad + toggleW, y, Width - pad * 2 - iconW - Px(6) - toggleW, Px(24)) : new Rectangle(pad + iconW + Px(6), y, Width - pad * 2 - iconW - Px(6) - toggleW, Px(24));
         TextRenderer.DrawText(g, lim, fSmall, lr2, limC, near | TextFormatFlags.VerticalCenter | TextFormatFlags.EndEllipsis);
     }
 

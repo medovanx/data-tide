@@ -28,7 +28,7 @@ sealed class SettingsForm : Form
     // Limits
     readonly ToggleSwitch tglLimits = new();
     readonly FlowLayoutPanel rulesPanel = new() { FlowDirection = FlowDirection.TopDown, WrapContents = false, AutoSize = true, Margin = Padding.Empty };
-    readonly ThemedCombo cmbProcs = Combo(330);
+    readonly ThemedCombo cmbProcs = Combo(300);
     readonly Button btnAddProc = new() { AutoSize = true, Height = 30 }, btnBrowse = new() { AutoSize = true, Height = 30 }, btnDriver = new() { AutoSize = true, Height = 30 }, btnDriverPage = new() { AutoSize = true, Height = 30 };
     readonly Label lblDriverProgress = new() { AutoSize = true, Tag = "dim", MaximumSize = new Size(490, 0), Margin = new Padding(0, 6, 0, 0) };
     readonly Label lblDriver = new() { AutoSize = true, MaximumSize = new Size(490, 0), Margin = new Padding(0, 0, 0, 8) };
@@ -237,31 +237,53 @@ sealed class SettingsForm : Form
     void FillProcesses()
     {
         cmbProcs.Items.Clear();
+        cmbProcs.Icons.Clear();
         procPaths.Clear();
         if (app.Headless)
         {
             // Screenshots never list the user's real programs.
             procPaths.Add(@"C:\Program Files\Example Browser\browser.exe");
-            cmbProcs.Items.Add("browser  (Example Browser)");
+            cmbProcs.Items.Add("Example Browser  (browser.exe)");
+            cmbProcs.Icons.Add(SystemIcons.Application.ToBitmap());
             cmbProcs.SelectedIndex = 0;
             return;
         }
-        var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        // Apps with a window come first (what people usually want to limit), then background programs.
+        var found = new Dictionary<string, bool>(StringComparer.OrdinalIgnoreCase);
         foreach (var p in Process.GetProcesses())
         {
             try
             {
                 if (p.Id == Environment.ProcessId) continue;
                 string? path = p.MainModule?.FileName;
-                if (path == null || !seen.Add(path) || path.StartsWith(Environment.GetFolderPath(Environment.SpecialFolder.Windows), StringComparison.OrdinalIgnoreCase)) continue;
-                procPaths.Add(path);
+                if (path == null || path.StartsWith(Environment.GetFolderPath(Environment.SpecialFolder.Windows), StringComparison.OrdinalIgnoreCase)) continue;
+                bool windowed = p.MainWindowHandle != IntPtr.Zero;
+                found[path] = found.TryGetValue(path, out var w) ? w || windowed : windowed;
             }
             catch { /* protected or elevated process */ }
             finally { p.Dispose(); }
         }
-        procPaths.Sort((a, b) => string.Compare(Path.GetFileName(a), Path.GetFileName(b), StringComparison.OrdinalIgnoreCase));
-        foreach (var path in procPaths) cmbProcs.Items.Add($"{Path.GetFileNameWithoutExtension(path)}  ({Path.GetFileName(Path.GetDirectoryName(path))})");
+        var items = found.Select(kv => (path: kv.Key, windowed: kv.Value, name: FriendlyName(kv.Key)))
+            .OrderByDescending(x => x.windowed).ThenBy(x => x.name, StringComparer.CurrentCultureIgnoreCase).ToList();
+        foreach (var (path, _, name) in items)
+        {
+            procPaths.Add(path);
+            cmbProcs.Items.Add($"{name}  ({Path.GetFileName(path)})");
+            cmbProcs.Icons.Add(ProgramIcons.For(path));
+        }
         if (cmbProcs.Items.Count > 0) cmbProcs.SelectedIndex = 0;
+    }
+
+    /// <summary>The program's own description ("Google Chrome") when it has one, else its file name.</summary>
+    static string FriendlyName(string path)
+    {
+        try
+        {
+            var d = FileVersionInfo.GetVersionInfo(path).FileDescription?.Trim();
+            if (!string.IsNullOrEmpty(d) && d.Length <= 60) return d;
+        }
+        catch { }
+        return Path.GetFileNameWithoutExtension(path);
     }
 
     void AddRule(string exe)

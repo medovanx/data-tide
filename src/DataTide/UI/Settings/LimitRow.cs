@@ -21,7 +21,15 @@ sealed class LimitRow : TableLayoutPanel
         ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
         for (int i = 0; i < 4; i++) ColumnStyles.Add(new ColumnStyle(SizeType.AutoSize));
 
-        var name = new Label { Text = rule.Name, AutoSize = true, Font = new Font("Segoe UI Semibold", 9.75f), Anchor = AnchorStyles.Left, Margin = new Padding(0, 6, 0, 0) };
+        // Program icon and name side by side.
+        var name = new FlowLayoutPanel { AutoSize = true, WrapContents = false, Anchor = AnchorStyles.Left, Margin = new Padding(0, 6, 0, 0) };
+        var icon = new PictureBox
+        {
+            Size = new Size(16, 16), SizeMode = PictureBoxSizeMode.Zoom, Margin = new Padding(0, 2, 6, 0),
+            Image = ProgramIcons.For(rule.ExePath), BackColor = Color.Transparent,
+        };
+        name.Controls.Add(icon);
+        name.Controls.Add(new Label { Text = rule.Name, AutoSize = true, Font = new Font("Segoe UI Semibold", 9.75f), Margin = Padding.Empty });
         var path = new Label { Text = rule.ExePath, AutoEllipsis = true, Tag = "dim", Width = 470, Height = 18, Anchor = AnchorStyles.Left, Font = new Font("Segoe UI", 8f) };
         tip.SetToolTip(path, rule.ExePath);
         numDown.Value = rule.DownBytesPerSecond / 1024;

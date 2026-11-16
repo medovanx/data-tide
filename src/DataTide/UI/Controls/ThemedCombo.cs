@@ -7,6 +7,21 @@ namespace DataTide.UI.Controls;
 sealed class ThemedCombo : Control
 {
     public List<string> Items { get; } = [];
+    /// <summary>Optional icon per item, drawn before its text (same order as <see cref="Items"/>).</summary>
+    public List<Image?> Icons { get; } = [];
+
+    internal Image? IconAt(int i) => i >= 0 && i < Icons.Count ? Icons[i] : null;
+
+    /// <summary>Draws an item's icon at the start edge of <paramref name="r"/> and returns the space left for its text.</summary>
+    internal static Rectangle DrawIcon(Graphics g, Image? icon, Rectangle r, bool rtl, float s)
+    {
+        if (icon == null) return r;
+        int size = (int)(16 * s), gap = (int)(8 * s);
+        int x = rtl ? r.Right - size : r.Left;
+        g.InterpolationMode = System.Drawing.Drawing2D.InterpolationMode.HighQualityBicubic;
+        g.DrawImage(icon, new Rectangle(x, r.Top + (r.Height - size) / 2, size, size));
+        return rtl ? new Rectangle(r.Left, r.Top, r.Width - size - gap, r.Height) : new Rectangle(r.Left + size + gap, r.Top, r.Width - size - gap, r.Height);
+    }
     public Theme Theme { get; set; } = Theme.Current;
     public event EventHandler? SelectedIndexChanged;
 
@@ -128,6 +143,7 @@ sealed class ThemedCombo : Control
         if (selected >= 0)
         {
             var tr = rtl ? new Rectangle(chevW, 0, Width - chevW - pad, Height) : new Rectangle(pad, 0, Width - chevW - pad, Height);
+            tr = DrawIcon(g, IconAt(selected), tr, rtl, s);
             TextRenderer.DrawText(g, Items[selected], Font, tr, fg, TextFormatFlags.VerticalCenter | TextFormatFlags.EndEllipsis | TextFormatFlags.SingleLine
                 | (rtl ? TextFormatFlags.Right | TextFormatFlags.RightToLeft : TextFormatFlags.Left));
         }
@@ -203,7 +219,7 @@ sealed class ThemedCombo : Control
                     using var ab = new SolidBrush(Theme.Accent);
                     g.FillRectangle(ab, rtl ? inner.Right - (int)(3 * s) : inner.Left, inner.Top + (int)(7 * s), (int)(3 * s), inner.Height - (int)(14 * s));
                 }
-                var tr = Rectangle.Inflate(inner, -(int)(10 * s), 0);
+                var tr = DrawIcon(g, owner.IconAt(i), Rectangle.Inflate(inner, -(int)(10 * s), 0), rtl, s);
                 TextRenderer.DrawText(g, owner.Items[i], Font, tr, sel ? Theme.Accent : Theme.Text,
                     TextFormatFlags.VerticalCenter | TextFormatFlags.EndEllipsis | TextFormatFlags.SingleLine
                     | (rtl ? TextFormatFlags.Right | TextFormatFlags.RightToLeft : TextFormatFlags.Left));

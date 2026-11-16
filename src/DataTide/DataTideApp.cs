@@ -246,6 +246,24 @@ sealed class DataTideApp : ApplicationContext
         return ok ? "" : L.T("LimiterUnreachable");
     }
 
+    /// <summary>
+    /// The quick switch in the flyout: saves the choice and starts or stops limiting. If the admin prompt is
+    /// declined or the helper fails, limits stay off. Returns a status line, empty on success.
+    /// </summary>
+    public async Task<string> SetLimitsEnabledAsync(bool on)
+    {
+        S.LimitsEnabled = on;
+        S.Save();
+        string msg = await SyncLimitsAsync();
+        if (on && msg.Length > 0)
+        {
+            S.LimitsEnabled = false;
+            S.Save();
+            UpdateWidget();
+        }
+        return msg;
+    }
+
     public async Task<string> SyncLimitsAsync()
     {
         if (S.LimitsEnabled && S.Limits.Any(r => r.Enabled)) return await StartLimitsAsync(userInitiated: true);
