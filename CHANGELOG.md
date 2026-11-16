@@ -3,6 +3,11 @@
 All notable changes to Data Tide are listed here.
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and versions follow [Semantic Versioning](https://semver.org/).
 
+## [1.0.1] - 2026-11-16
+
+### Changed
+- The summary tiles in reports and exports no longer have coloured side bars; the download and upload tiles carry the widget's arrows instead.
+
 ## [1.0.0] - 2026-11-16
 
 ### Added
@@ -31,4 +36,5 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and 
 - A small amber dot on the widget replaces the outline while limits are active.
 - One-click driver install: downloads the official Windows Packet Filter installer from NT Kernel's GitHub release, checks its SHA-256 and runs it.
 
+[1.0.1]: https://github.com/medovanx/data-tide/releases/tag/v1.0.1
 [1.0.0]: https://github.com/medovanx/data-tide/releases/tag/v1.0.0
