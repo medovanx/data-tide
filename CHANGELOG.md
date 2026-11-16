@@ -3,7 +3,7 @@
 All notable changes to Data Tide are listed here.
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and versions follow [Semantic Versioning](https://semver.org/).
 
-## [Unreleased]
+## [1.1.1] - 2026-11-17
 
 ### Changed
 - The interface list in the flyout is drawn in the app's own style (rounded, accent marker, an Internet tag) instead of a stock menu.
@@ -68,6 +68,7 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and 
 - A small amber dot on the widget replaces the outline while limits are active.
 - One-click driver install: downloads the official Windows Packet Filter installer from NT Kernel's GitHub release, checks its SHA-256 and runs it.
 
+[1.1.1]: https://github.com/medovanx/data-tide/releases/tag/v1.1.1
 [1.1.0]: https://github.com/medovanx/data-tide/releases/tag/v1.1.0
 [1.0.3]: https://github.com/medovanx/data-tide/releases/tag/v1.0.3
 [1.0.2]: https://github.com/medovanx/data-tide/releases/tag/v1.0.2
