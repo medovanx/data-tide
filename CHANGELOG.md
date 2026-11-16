@@ -1,0 +1,19 @@
+# Changelog
+
+All notable changes to Data Tide are listed here.
+The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and versions follow [Semantic Versioning](https://semver.org/).
+
+## [1.0.0] - 2026-11-16
+
+### Added
+- Taskbar widget with live upload and download speeds, embedded next to the notification area. It takes the nearest free spot, so it never overlaps other taskbar widgets such as TrafficMonitor or Salaty Reminder, and it survives Explorer restarts.
+- Interface choice: Auto follows the connection Windows uses to reach the internet, or pin any adapter.
+- Traffic flyout: live speeds, a one-minute graph and today's usage per interface.
+- Usage logger: bytes received and sent per interface, hour by hour, stored on this PC in `usage.csv`.
+- Usage report for today, the last 7 or 30 days, this or last month, or all time, with a stacked chart, totals per interface and a day-by-day table. Interfaces are always kept apart and labelled.
+- Export the report as a PNG image or a multi-page A4 PDF.
+- Per-program download and upload speed limits through the Windows Packet Filter driver, applied by a small elevated helper.
+- English and Arabic with a full right-to-left layout; light and dark theme following Windows.
+- Auto-updates from GitHub Releases with SHA-256 verification.
+
+[1.0.0]: https://github.com/medovanx/data-tide/releases/tag/v1.0.0

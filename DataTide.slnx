@@ -1,0 +1,9 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/DataTide.Core/DataTide.Core.csproj" />
+    <Project Path="src/DataTide/DataTide.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/DataTide.Core.Tests/DataTide.Core.Tests.csproj" />
+  </Folder>
+</Solution>

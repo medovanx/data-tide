@@ -1,0 +1,9 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!-- Usage ledger, counters, formatting, rate limiting and packet parsing with no Windows or UI dependencies, so it can be unit tested anywhere. -->
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <RootNamespace>DataTide.Core</RootNamespace>
+  </PropertyGroup>
+
+</Project>
