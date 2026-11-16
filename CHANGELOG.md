@@ -3,7 +3,7 @@
 All notable changes to Data Tide are listed here.
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and versions follow [Semantic Versioning](https://semver.org/).
 
-## [Unreleased]
+## [1.1.0] - 2026-11-17
 
 ### Added
 - Speed test: ping, jitter, download and upload against Cloudflare's servers, with live tiles and a progress line. Open it from the flyout's Speed button or the right-click menu.
@@ -63,6 +63,7 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and 
 - A small amber dot on the widget replaces the outline while limits are active.
 - One-click driver install: downloads the official Windows Packet Filter installer from NT Kernel's GitHub release, checks its SHA-256 and runs it.
 
+[1.1.0]: https://github.com/medovanx/data-tide/releases/tag/v1.1.0
 [1.0.3]: https://github.com/medovanx/data-tide/releases/tag/v1.0.3
 [1.0.2]: https://github.com/medovanx/data-tide/releases/tag/v1.0.2
 [1.0.1]: https://github.com/medovanx/data-tide/releases/tag/v1.0.1
