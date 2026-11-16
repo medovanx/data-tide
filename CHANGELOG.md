@@ -3,6 +3,11 @@
 All notable changes to Data Tide are listed here.
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and versions follow [Semantic Versioning](https://semver.org/).
 
+## [1.0.3] - 2026-11-16
+
+### Fixed
+- Buttons in Settings no longer turn their text near black when disabled or flash light when pressed in the dark theme.
+
 ## [1.0.2] - 2026-11-16
 
 ### Changed
@@ -44,6 +49,7 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and 
 - A small amber dot on the widget replaces the outline while limits are active.
 - One-click driver install: downloads the official Windows Packet Filter installer from NT Kernel's GitHub release, checks its SHA-256 and runs it.
 
+[1.0.3]: https://github.com/medovanx/data-tide/releases/tag/v1.0.3
 [1.0.2]: https://github.com/medovanx/data-tide/releases/tag/v1.0.2
 [1.0.1]: https://github.com/medovanx/data-tide/releases/tag/v1.0.1
 [1.0.0]: https://github.com/medovanx/data-tide/releases/tag/v1.0.0
