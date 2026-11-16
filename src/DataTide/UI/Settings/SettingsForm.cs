@@ -29,7 +29,8 @@ sealed class SettingsForm : Form
     readonly ToggleSwitch tglLimits = new();
     readonly FlowLayoutPanel rulesPanel = new() { FlowDirection = FlowDirection.TopDown, WrapContents = false, AutoSize = true, Margin = Padding.Empty };
     readonly ThemedCombo cmbProcs = Combo(330);
-    readonly Button btnAddProc = new() { AutoSize = true, Height = 30 }, btnBrowse = new() { AutoSize = true, Height = 30 }, btnDriver = new() { AutoSize = true, Height = 30 };
+    readonly Button btnAddProc = new() { AutoSize = true, Height = 30 }, btnBrowse = new() { AutoSize = true, Height = 30 }, btnDriver = new() { AutoSize = true, Height = 30 }, btnDriverPage = new() { AutoSize = true, Height = 30 };
+    readonly Label lblDriverProgress = new() { AutoSize = true, Tag = "dim", MaximumSize = new Size(490, 0), Margin = new Padding(0, 6, 0, 0) };
     readonly Label lblDriver = new() { AutoSize = true, MaximumSize = new Size(490, 0), Margin = new Padding(0, 0, 0, 8) };
     readonly Label lblLimits = new() { AutoSize = true, Tag = "dim", MaximumSize = new Size(490, 0), Margin = new Padding(0, 6, 0, 0) };
     readonly Label lblLive = new() { AutoSize = true, Tag = "dim", MaximumSize = new Size(490, 0) };
@@ -184,8 +185,17 @@ sealed class SettingsForm : Form
     void BuildLimits()
     {
         tglLimits.Checked = s.LimitsEnabled;
-        btnDriver.Text = L.T("GetDriver");
-        btnDriver.Click += (_, _) => Updater.OpenPage(LimiterClient.DriverDownloadPage);
+        btnDriver.Text = L.T("InstallDriver");
+        btnDriverPage.Text = L.T("DriverPage");
+        btnDriverPage.Click += (_, _) => Updater.OpenPage(LimiterClient.DriverDownloadPage);
+        btnDriver.Click += async (_, _) =>
+        {
+            btnDriver.Enabled = false;
+            var result = await DriverInstaller.InstallAsync(new Progress<string>(m => lblDriverProgress.Text = m));
+            btnDriver.Enabled = true;
+            UpdateDriverText();
+            SyncEnabled();
+        };
         btnAddProc.Text = L.T("Add");
         btnBrowse.Text = L.T("Browse");
         FillProcesses();
@@ -203,7 +213,7 @@ sealed class SettingsForm : Form
         tglLimits.CheckedChanged += (_, _) => SyncEnabled();
 
         var how = new Label { Text = L.T("LimitsNote"), AutoSize = true, MaximumSize = new Size(490, 0), Tag = "dim", Margin = new Padding(0, 0, 0, 8) };
-        var driverCard = Card(L.T("Driver"), Art.IconShield, lblDriver, how, btnDriver);
+        var driverCard = Card(L.T("Driver"), Art.IconShield, lblDriver, how, Flow(btnDriver, btnDriverPage), lblDriverProgress);
         var rulesCard = Card(L.T("SpeedLimits"), Art.IconSpeed,
             Row(L.T("EnableLimits"), tglLimits),
             rulesPanel,
@@ -221,7 +231,7 @@ sealed class SettingsForm : Form
         lblDriver.Text = ok ? L.T("DriverInstalled") : L.T("DriverMissingLong");
         lblDriver.ForeColor = ok ? t.Accent : t.Up;
         lblDriver.Tag = "keep";
-        btnDriver.Visible = !ok;
+        btnDriver.Visible = btnDriverPage.Visible = !ok;
     }
 
     void FillProcesses()

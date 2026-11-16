@@ -22,5 +22,6 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and 
 - History can be kept for 1 week up to 5 years, forever, or any number of days.
 - Closing a dropdown could crash the app on the next click.
 - Hovering the widget shows today's and this month's usage, and the flyout shows this month's total.
+- One-click driver install: downloads the official Windows Packet Filter installer from NT Kernel's GitHub release, checks its SHA-256 and runs it.
 
 [1.0.0]: https://github.com/medovanx/data-tide/releases/tag/v1.0.0

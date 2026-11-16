@@ -77,7 +77,7 @@ Speed limits need one extra install, described next. Everything else works witho
 
 Windows can't limit a program's **download** speed by itself. Its built-in QoS policies only shape traffic leaving the PC. So Data Tide uses the free **[Windows Packet Filter](https://www.ntkernel.com/windows-packet-filter/)** driver by NT Kernel, a Microsoft-signed network filter driver that many VPN and firewall tools rely on.
 
-1. Install the official driver from [its releases](https://github.com/wiresock/ndisapi/releases/latest) (`Windows.Packet.Filter.x.x.x.x64.msi`). Data Tide doesn't bundle it; the driver is free for personal, non-commercial use.
+1. In **Settings > Limits**, click **Install the driver**. Data Tide downloads the official installer from [NT Kernel's GitHub release](https://github.com/wiresock/ndisapi/releases/latest), checks it against the SHA-256 GitHub publishes, and runs it; Windows asks for administrator rights. The driver isn't bundled: it is free for personal, non-commercial use, and redistributing it needs NT Kernel's permission.
 2. In Data Tide, open **Settings > Limits**, add programs from the list of running apps or with **Browse...**, and set download and upload caps in KB/s (0 means no cap).
 3. Turn on **speed limits** and save. Windows asks once for administrator rights for the limiter helper.
 
@@ -116,7 +116,8 @@ Data Tide has no account, analytics or tracking. Your usage log never leaves you
 
 | Service | When | What it sends |
 | --- | --- | --- |
-| [GitHub API](https://docs.github.com/rest/releases) | Update checks | Nothing besides the request |
+| [GitHub API](https://docs.github.com/rest/releases) | Update checks, and finding the driver installer when you click Install | Nothing besides the request |
+| [GitHub Releases of wiresock/ndisapi](https://github.com/wiresock/ndisapi/releases) | Only when you click **Install the driver** | Nothing besides the download |
 
 Turn off update checks for a fully offline app. To find the "Auto" interface Data Tide asks the Windows routing table which adapter would reach `1.1.1.1`; no packet is sent there. Speed limits read packet headers on your PC only to find which program a packet belongs to; nothing is stored or sent.
 
