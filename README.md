@@ -51,6 +51,11 @@ as PNG or PDF, and can cap the download and upload speed of any program. English
     <td align="center"><img src="docs/screenshots/flyout-en-light.png" width="300"><br><sub>Light theme</sub></td>
     <td align="center"><img src="docs/screenshots/flyout-ar-dark.png" width="300"><br><sub>Arabic, right to left</sub></td>
   </tr>
+  <tr>
+    <td align="center"><img src="docs/screenshots/menu-en-dark.png" width="200"><br><sub>Right-click menu</sub></td>
+    <td align="center"><img src="docs/screenshots/actions-en.png" width="240"><br><sub>Click a program to limit or block it</sub></td>
+    <td align="center"><img src="docs/screenshots/menu-ar-light.png" width="200"><br><sub>Menu in Arabic, light theme</sub></td>
+  </tr>
 </table>
 
 <table>

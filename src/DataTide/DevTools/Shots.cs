@@ -46,8 +46,8 @@ static class Shots
                     new("limit:524288", L.F("LimitTo", L.Ltr(ByteFormat.Rate(524288))), Glyph: Art.IconLimit),
                     new("limit:131072", L.F("LimitTo", L.Ltr(ByteFormat.Rate(131072))), Glyph: Art.IconLimit),
                     PopupList.Item.Separator,
-                    new("block", L.T("BlockAll"), Danger: true, Glyph: ""),
-                    new("pause", L.T("PauseRule"), Glyph: ""),
+                    new("block", L.T("BlockAll"), Danger: true, Glyph: "\uF140"),
+                    new("pause", L.T("PauseRule"), Glyph: "\uE769"),
                     new("remove", L.T("RemoveLimit"), Glyph: Art.IconDelete),
                     PopupList.Item.Separator,
                     new("more", L.T("MoreOptions"), Glyph: Art.IconSettings)], new Theme(true), "Example Launcher")
@@ -55,7 +55,7 @@ static class Shots
                 acts.Size = acts.Preferred(230);
                 using var ab = new Bitmap(acts.Width, acts.Height);
                 acts.DrawToBitmap(ab, new Rectangle(Point.Empty, acts.Size));
-                ab.Save(Path.Combine(dir, $"actions-{lang}.png"), ImageFormat.Png);
+                SaveRounded(ab, Path.Combine(dir, $"actions-{lang}.png"), new Theme(true));
                 acts.Dispose();
             }
             var tip = new HoverTip();
@@ -78,7 +78,7 @@ static class Shots
                 m.Items[2].Select();
                 using var mb = new Bitmap(m.Width, m.Height);
                 m.DrawToBitmap(mb, new Rectangle(Point.Empty, m.Size));
-                mb.Save(Path.Combine(dir, $"menu-{lang}-{(dk ? "dark" : "light")}.png"), ImageFormat.Png);
+                SaveRounded(mb, Path.Combine(dir, $"menu-{lang}-{(dk ? "dark" : "light")}.png"), new Theme(dk), topPad: 4); // DrawToBitmap leaves out the menu's top padding
                 m.Close();
             }
 
@@ -160,6 +160,24 @@ static class Shots
     /// <summary>
     /// A window's client area (sidebar, page and buttons) without its title bar, drawn child by child off-screen.
     /// </summary>
+    /// <summary>Saves a popup with the rounded corners and border Windows gives it on screen (DrawToBitmap has neither).</summary>
+    static void SaveRounded(Bitmap src, string path, Theme t, int topPad = 0)
+    {
+        using var padded = new Bitmap(src.Width, src.Height + topPad);
+        using (var pg = Graphics.FromImage(padded)) { pg.Clear(t.Surface); pg.DrawImageUnscaled(src, 0, topPad); }
+        using var outb = new Bitmap(padded.Width, padded.Height, PixelFormat.Format32bppArgb);
+        using (var g = Graphics.FromImage(outb))
+        {
+            g.SmoothingMode = System.Drawing.Drawing2D.SmoothingMode.AntiAlias;
+            var r = new RectangleF(0.5f, 0.5f, padded.Width - 1, padded.Height - 1);
+            using var path_ = Art.RoundRect(r, 8);
+            using (var tb = new TextureBrush(padded)) g.FillPath(tb, path_);
+            using var pen = new Pen(t.Border);
+            g.DrawPath(pen, path_);
+        }
+        outb.Save(path, ImageFormat.Png);
+    }
+
     static void SaveClient(Form f, string path)
     {
         f.Refresh();
