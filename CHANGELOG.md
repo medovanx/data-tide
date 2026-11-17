@@ -3,6 +3,11 @@
 All notable changes to Data Tide are listed here.
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and versions follow [Semantic Versioning](https://semver.org/).
 
+## [1.4.1] - 2026-11-17
+
+### Changed
+- Game mode matches a game by its full path, not just its exe name, so another program with the same file name in a different folder no longer turns it on. Games running as administrator are still recognised; only when Windows hides even the path does the name decide.
+
 ## [1.4.0] - 2026-11-17
 
 ### Added
@@ -117,6 +122,7 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and 
 - A small amber dot on the widget replaces the outline while limits are active.
 - One-click driver install: downloads the official Windows Packet Filter installer from NT Kernel's GitHub release, checks its SHA-256 and runs it.
 
+[1.4.1]: https://github.com/medovanx/data-tide/releases/tag/v1.4.1
 [1.4.0]: https://github.com/medovanx/data-tide/releases/tag/v1.4.0
 [1.3.5]: https://github.com/medovanx/data-tide/releases/tag/v1.3.5
 [1.3.4]: https://github.com/medovanx/data-tide/releases/tag/v1.3.4
