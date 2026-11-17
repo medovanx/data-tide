@@ -3,6 +3,11 @@
 All notable changes to Data Tide are listed here.
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and versions follow [Semantic Versioning](https://semver.org/).
 
+## [1.6.2] - 2026-11-18
+
+### Fixed
+- Start with Windows works again on recent Windows 11 builds, which skip a startup entry unless it is also marked as enabled in Windows' startup list. Turning it on now writes that mark too.
+
 ## [1.6.1] - 2026-11-17
 
 ### Fixed
@@ -147,6 +152,7 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and 
 - A small amber dot on the widget replaces the outline while limits are active.
 - One-click driver install: downloads the official Windows Packet Filter installer from NT Kernel's GitHub release, checks its SHA-256 and runs it.
 
+[1.6.2]: https://github.com/medovanx/data-tide/releases/tag/v1.6.2
 [1.6.1]: https://github.com/medovanx/data-tide/releases/tag/v1.6.1
 [1.6.0]: https://github.com/medovanx/data-tide/releases/tag/v1.6.0
 [1.5.2]: https://github.com/medovanx/data-tide/releases/tag/v1.5.2
