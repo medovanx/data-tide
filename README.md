@@ -102,7 +102,7 @@ Notes:
 | --- | --- |
 | Hover over the widget | Today's and this month's usage |
 | Click the widget | Opens the traffic flyout; its switch turns speed limits on or off |
-| Right-click the widget | Menu: traffic, usage report, speed limits, interface, settings, updates, start with Windows, exit |
+| Right-click the widget | Menu: traffic, usage report, speed limits, interface, language, settings, updates, start with Windows, exit |
 | Report window | Pick a range and an interface, then **Save PNG** or **Save PDF** |
 | Launch the exe again | Opens the flyout of the running instance |
 

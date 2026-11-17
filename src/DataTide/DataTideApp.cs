@@ -503,6 +503,24 @@ sealed class DataTideApp : ApplicationContext
         foreach (var (id, name, _, up) in Monitor.All().Where(i => i.up)) AddIf(id, name);
         menu.Items.Add(ifMenu);
 
+        // Language: applied at once; open windows close so they don't keep the old one (Settings would save it back).
+        var langMenu = new ToolStripMenuItem(L.T("Language"));
+        foreach (var (code, name) in new[] { ("en", "English"), ("ar", "العربية") })
+        {
+            var item = new ToolStripMenuItem(name) { Checked = S.Language == code };
+            item.Click += (_, _) =>
+            {
+                if (S.Language == code) return;
+                if (settingsForm is { IsDisposed: false }) settingsForm.Close();
+                if (speedForm is { IsDisposed: false }) speedForm.Close();
+                var s = S.Clone();
+                s.Language = code;
+                ApplySettings(s);
+            };
+            langMenu.DropDownItems.Add(item);
+        }
+        menu.Items.Add(langMenu);
+
         menu.Items.Add(new ToolStripSeparator());
         menu.Items.Add(L.T("Settings"), null, (_, _) => ShowSettings());
         menu.Items.Add(L.T("CheckForUpdates"), null, async (_, _) =>
