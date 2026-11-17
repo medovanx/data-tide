@@ -498,6 +498,9 @@ sealed class DataTideApp : ApplicationContext
             return it;
         }
 
+        // The app and its version as a quiet header.
+        m.Items.Add(new ToolStripMenuItem($"{L.T("AppName")}  {L.Ltr("v" + Updater.CurrentText)}") { Enabled = false, Tag = new ThemedMenuRenderer.MenuGlyph(Art.IconApp) });
+        m.Items.Add(new ToolStripSeparator());
         var show = Item(L.T("ShowTraffic"), "\uE8AB", ShowFlyout);
         show.Font = new Font("Segoe UI Semibold", 9.5f);
         m.Items.Add(show);

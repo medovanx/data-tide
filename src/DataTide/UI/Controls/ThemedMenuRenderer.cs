@@ -69,15 +69,18 @@ sealed class ThemedMenuRenderer(Theme t) : ToolStripRenderer
             bool rtl = owner.RightToLeft == RightToLeft.Yes;
             float w = m.Width;
             var box = new RectangleF(rtl ? it.Width - w : 0, 0, w, it.Height);
-            box.Offset(rtl ? -2 * s : 2 * s, 0);
+            // Up a little: text is centred on its line box, whose visual middle sits above the box middle.
+            box.Offset(rtl ? -2 * s : 2 * s, -TextLift(s));
             Art.GlyphCentered(g, mg.Glyph, 14 * s, box, !it.Enabled ? Color.FromArgb(120, t.Dim) : mg.Color ?? t.Dim);
         }
     }
 
+    static float TextLift(float s) => 1.5f * s;
+
     protected override void OnRenderItemCheck(ToolStripItemImageRenderEventArgs e)
     {
         float s = e.Item.Owner?.DeviceDpi / 96f ?? 1f;
-        Art.GlyphCentered(e.Graphics, "\uE73E", 11 * s, e.ImageRectangle, t.Accent);
+        Art.GlyphCentered(e.Graphics, "\uE73E", 11 * s, RectangleF.FromLTRB(e.ImageRectangle.Left, e.ImageRectangle.Top - TextLift(s), e.ImageRectangle.Right, e.ImageRectangle.Bottom - TextLift(s)), t.Accent);
     }
 
     protected override void OnRenderItemText(ToolStripItemTextRenderEventArgs e)
