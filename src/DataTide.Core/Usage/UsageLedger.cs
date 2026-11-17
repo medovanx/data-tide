@@ -137,10 +137,10 @@ public sealed class UsageLedger
         return count;
     }
 
-    static string Csv(string s) =>
+    internal static string Csv(string s) =>
         s.IndexOfAny([',', '"', '\n', '\r']) >= 0 ? "\"" + s.Replace("\"", "\"\"") + "\"" : s;
 
-    static List<string> SplitCsv(string line)
+    internal static List<string> SplitCsv(string line)
     {
         var fields = new List<string>();
         var sb = new StringBuilder();

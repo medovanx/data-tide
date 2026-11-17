@@ -11,6 +11,9 @@ public sealed class UsageReport
     public IReadOnlyList<DailyUsage> Rows { get; }
     public IReadOnlyList<InterfaceTotal> Interfaces { get; }
     public IReadOnlyList<DateOnly> Days { get; }
+    /// <summary>Data per program over the range, busiest first; empty when the Programs list was never on.
+    /// Not split by interface: Windows reports a program's traffic without the adapter it went through.</summary>
+    public IReadOnlyList<ProgramTotal> Programs { get; private init; } = [];
 
     public long Received => Interfaces.Sum(i => i.Received);
     public long Sent => Interfaces.Sum(i => i.Sent);
@@ -30,11 +33,11 @@ public sealed class UsageReport
     }
 
     /// <summary>Builds a report; <paramref name="interfaceId"/> null means every interface.</summary>
-    public static UsageReport Build(UsageLedger ledger, DateOnly from, DateOnly to, string? interfaceId = null)
+    public static UsageReport Build(UsageLedger ledger, DateOnly from, DateOnly to, string? interfaceId = null, ProgramLedger? programs = null)
     {
         if (to < from) (from, to) = (to, from);
         var rows = ledger.Days(from, to).Where(r => interfaceId == null || r.InterfaceId == interfaceId).ToList();
-        return new UsageReport(from, to, rows);
+        return new UsageReport(from, to, rows) { Programs = programs?.Range(from, to) ?? [] };
     }
 
     /// <summary>Totals for one day on one interface (zero when nothing was logged).</summary>

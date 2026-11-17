@@ -16,6 +16,7 @@ static class Shots
         ApplicationConfiguration.Initialize();
         var today = DateOnly.FromDateTime(DateTime.Now);
         var ledger = DemoData.Ledger(today);
+        var programLog = DemoData.ProgramLog(today);
         foreach (var lang in new[] { "en", "ar" })
         {
             var app = new DataTideApp(DemoData.Settings(lang), ledger);
@@ -84,10 +85,10 @@ static class Shots
             settings.Close();
 
             var (from, to) = UsageReport.Resolve(ReportRange.Last30Days, today);
-            var report = UsageReport.Build(ledger, from, to);
+            var report = UsageReport.Build(ledger, from, to, programs: programLog);
             ReportExporter.SavePng(report, L.T("AllInterfaces"), Path.Combine(dir, $"report-{lang}.png"));
             var (wf, wt) = UsageReport.Resolve(ReportRange.Last7Days, today);
-            DarkReport(UsageReport.Build(ledger, wf, wt), Path.Combine(dir, $"report-week-{lang}-dark.png"));
+            DarkReport(UsageReport.Build(ledger, wf, wt, programs: programLog), Path.Combine(dir, $"report-week-{lang}-dark.png"));
             if (lang == "en") ReportExporter.SavePdf(report, L.T("AllInterfaces"), Path.Combine(dir, "report-en.pdf"));
             if (lang == "ar") ReportExporter.SavePdf(report, L.T("AllInterfaces"), Path.Combine(dir, "report-ar.pdf"));
         }

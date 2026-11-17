@@ -183,7 +183,9 @@ sealed class SettingsForm : Form
         {
             if (MessageBox.Show(this, L.T("ClearConfirm"), Text, MessageBoxButtons.YesNo, MessageBoxIcon.Warning, MessageBoxDefaultButton.Button2) != DialogResult.Yes) return;
             app.Ledger.Clear();
+            app.ProgramLog.Clear();
             UsageStore.Save(app.Ledger);
+            UsageStore.Save(app.ProgramLog);
         };
         var autoNote = new Label { Text = L.T("AutoInterfaceNote"), AutoSize = true, MaximumSize = new Size(490, 0), Tag = "dim", Margin = new Padding(0, 0, 0, 6) };
         var virtualNote = new Label { Text = L.T("LogVirtualNote"), AutoSize = true, MaximumSize = new Size(490, 0), Tag = "dim", Margin = new Padding(0, 0, 0, 6) };

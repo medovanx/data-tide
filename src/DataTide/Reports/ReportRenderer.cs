@@ -110,6 +110,7 @@ sealed class ReportRenderer
         Blocks.Add(new ReportBlock(P(44), (g, y) => SectionTitle(g, y, L.T("UsageOverTime"))));
         Blocks.Add(new ReportBlock(P(300), Chart));
         BuildInterfaceTable();
+        BuildProgramTable();
         BuildDailyTable();
         Blocks.Add(new ReportBlock(P(56), Footer));
     }
@@ -277,7 +278,7 @@ sealed class ReportRenderer
     // ---------- tables ----------
 
     /// <summary>Column starts and widths as fractions of the content width, from the start edge.</summary>
-    void Row(Graphics g, int y, int h, float[] cols, string[] cells, Font f, Color c, Color? fill, Color? swatch = null, Color[]? cellColors = null, int nearColumns = 1)
+    void Row(Graphics g, int y, int h, float[] cols, string[] cells, Font f, Color c, Color? fill, Color? swatch = null, Color[]? cellColors = null, int nearColumns = 1, Image? icon = null)
     {
         if (fill is { } fc) Art.FillRound(g, new RectangleF(Margin, y + P(2), Content, h - P(4)), P(6), fc);
         float x = 0;
@@ -290,6 +291,15 @@ sealed class ReportRenderer
             {
                 Art.FillRound(g, new RectangleF(X(x + pad, P(10)), y + (h - P(10)) / 2f, P(10), P(10)), P(3), sc);
                 sx = P(18);
+            }
+            else if (i == 0 && icon != null)
+            {
+                int iz = P(18);
+                var old = g.InterpolationMode;
+                g.InterpolationMode = InterpolationMode.HighQualityBicubic;
+                g.DrawImage(icon, new RectangleF(X(x + pad, iz), y + (h - iz) / 2f, iz, iz));
+                g.InterpolationMode = old;
+                sx = iz + P(10);
             }
             var align = i < nearColumns ? StringAlignment.Near : StringAlignment.Far;
             Text(g, cells[i], f, new RectangleF(X(x + pad + sx, w - pad * 2 - sx), y, w - pad * 2 - sx, h), cellColors?[i] ?? c, align, ltr: i >= nearColumns);
@@ -331,6 +341,61 @@ sealed class ReportRenderer
                 g.DrawLine(pen, Margin, y, Margin + Content, y);
                 Row(g, y, rh, cols, [L.T("AllInterfaces"), ByteFormat.Size(r.Received), ByteFormat.Size(r.Sent), ByteFormat.Size(r.Total), "100%"], f, t.Text, null);
             }, IsTableRow: true));
+    }
+
+    /// <summary>Programs listed by name before the rest are summed into one "Other programs" row.</summary>
+    const int MaxProgramRows = 12;
+
+    void BuildProgramTable()
+    {
+        Blocks.Add(new ReportBlock(P(52), (g, y) => SectionTitle(g, y + P(8), L.T("ByProgram"))));
+        // Windows gives a program's bytes without the adapter, so this table never follows the interface filter.
+        Blocks.Add(new ReportBlock(P(26), (g, y) =>
+        {
+            using var f = F(11.5f);
+            Text(g, L.T("ByProgramNote"), f, new RectangleF(Margin, y, Content, P(20)), t.Dim);
+        }));
+        float[] cols = [0.40f, 0.17f, 0.17f, 0.15f, 0.11f];
+        int rh = P(34);
+        void Head(Graphics g, int y)
+        {
+            using var f = F(11.5f, true);
+            Row(g, y, rh, cols, [L.T("Program"), L.T("Download"), L.T("Upload"), L.T("Total"), L.T("Share")], f, t.Dim, null);
+            using var pen = new Pen(t.Border, Math.Max(1, s));
+            g.DrawLine(pen, Margin, y + rh - 1, Margin + Content, y + rh - 1);
+        }
+        Blocks.Add(new ReportBlock(rh, Head, RepeatHeader: Head, RepeatHeaderHeight: rh));
+        if (r.Programs.Count == 0)
+        {
+            Blocks.Add(new ReportBlock(rh, (g, y) => { using var f = F(12.5f); Text(g, L.T("NoProgramData"), f, new RectangleF(Margin + P(12), y, Content - P(24), rh), t.Dim); }, IsTableRow: true));
+            return;
+        }
+        long all = Math.Max(1, r.Programs.Sum(p => p.Total));
+        var shown = r.Programs.Take(MaxProgramRows).ToList();
+        var rest = r.Programs.Skip(MaxProgramRows).ToList();
+        int n = 0;
+        foreach (var p in shown)
+        {
+            bool zebra = n++ % 2 == 1;
+            var it = p;
+            Blocks.Add(new ReportBlock(rh, (g, y) =>
+            {
+                using var f = F(12.5f);
+                Row(g, y, rh, cols, [it.Name, ByteFormat.Size(it.Received), ByteFormat.Size(it.Sent), ByteFormat.Size(it.Total), $"{100.0 * it.Total / all:0.#}%"],
+                    f, t.Text, zebra ? RowFill : null, null, [t.Text, t.Down, t.Up, t.Text, t.Dim], icon: ProgramIcons.For(it.Path));
+            }, IsTableRow: true));
+        }
+        if (rest.Count > 0)
+        {
+            bool zebra = n % 2 == 1;
+            long rx = rest.Sum(p => p.Received), tx = rest.Sum(p => p.Sent);
+            Blocks.Add(new ReportBlock(rh, (g, y) =>
+            {
+                using var f = F(12.5f);
+                Row(g, y, rh, cols, [L.F("OtherPrograms", rest.Count), ByteFormat.Size(rx), ByteFormat.Size(tx), ByteFormat.Size(rx + tx), $"{100.0 * (rx + tx) / all:0.#}%"],
+                    f, t.Dim, zebra ? RowFill : null, null, [t.Dim, t.Down, t.Up, t.Text, t.Dim]);
+            }, IsTableRow: true));
+        }
     }
 
     Color RowFill => Color.FromArgb(t.Dark ? 18 : 10, t.Text);

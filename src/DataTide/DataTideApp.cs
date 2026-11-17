@@ -7,6 +7,8 @@ sealed class DataTideApp : ApplicationContext
     public AppSettings S { get; private set; }
     public Icon AppIcon { get; }
     public UsageLedger Ledger { get; }
+    /// <summary>Data per program per day, filled while the Programs list is on.</summary>
+    public ProgramLedger ProgramLog { get; }
     public NetworkMonitor Monitor { get; } = new();
     public SpeedHistory History { get; } = new(60);
 
@@ -51,13 +53,14 @@ sealed class DataTideApp : ApplicationContext
         TodayTotal = (day.Sum(d => d.Received), day.Sum(d => d.Sent));
     }
 
-    public DataTideApp(AppSettings? settings = null, UsageLedger? ledger = null)
+    public DataTideApp(AppSettings? settings = null, UsageLedger? ledger = null, ProgramLedger? programLog = null)
     {
         Headless = settings != null;
         S = settings ?? AppSettings.Load();
         L.Ar = S.Language == "ar";
         AppIcon = LoadIcon();
         Ledger = ledger ?? UsageStore.Load();
+        ProgramLog = programLog ?? (settings != null ? new ProgramLedger() : UsageStore.LoadPrograms());
         // Filter bindings logged by 1.0.0 builds before they were recognised: they only repeat a real adapter.
         if (ledger == null && Ledger.Remove(Monitor.FilterIds) > 0) UsageStore.Save(Ledger);
 
@@ -84,7 +87,7 @@ sealed class DataTideApp : ApplicationContext
         SystemEvents.PowerModeChanged += (_, e) => { if (e.Mode == PowerModes.Resume) host.BeginInvoke(sampler.Reset); };
         SystemEvents.DisplaySettingsChanged += (_, _) => host.BeginInvoke(() => { widget.Invalidate(); widget.Ensure(); });
         SystemEvents.UserPreferenceChanged += (_, _) => host.BeginInvoke(widget.Invalidate);
-        SystemEvents.SessionEnding += (_, _) => UsageStore.Save(Ledger);
+        SystemEvents.SessionEnding += (_, _) => SaveLogs();
 
         widget.SetPlacement(S.WidgetSide == "Left", S.WidgetOffset);
         widget.Ensure();
@@ -105,6 +108,14 @@ sealed class DataTideApp : ApplicationContext
         if (S.ShowPrograms) _ = StartProgramsAsync();
     }
 
+    /// <summary>Writes the usage and per-program logs when they changed.</summary>
+    public void SaveLogs()
+    {
+        if (Headless) return;
+        if (Ledger.Dirty) UsageStore.Save(Ledger);
+        if (ProgramLog.Dirty) UsageStore.Save(ProgramLog);
+    }
+
     static Icon LoadIcon()
     {
         using var stream = typeof(DataTideApp).Assembly.GetManifestResourceStream("app.ico");
@@ -117,11 +128,12 @@ sealed class DataTideApp : ApplicationContext
         if (++ticks % 2 == 0) widget.Ensure(); // handles Explorer restarts and tray width changes
         UpdateWidget();
         var now = DateTime.Now;
-        if ((now - lastSave).TotalSeconds >= 60 && Ledger.Dirty) { lastSave = now; UsageStore.Save(Ledger); }
+        if ((now - lastSave).TotalSeconds >= 60 && (Ledger.Dirty || ProgramLog.Dirty)) { lastSave = now; SaveLogs(); }
         if (S.KeepDays > 0 && (now - lastPrune).TotalHours >= 12)
         {
             lastPrune = now;
             Ledger.Prune(now.Date.AddDays(-S.KeepDays));
+            ProgramLog.Prune(DateOnly.FromDateTime(now.Date.AddDays(-S.KeepDays)));
         }
         if (ticks % 10 == 1) RefreshTotals();
         if (S.ShowPrograms && ticks % 2 == 0) _ = PollProgramsAsync();
@@ -323,8 +335,6 @@ sealed class DataTideApp : ApplicationContext
     public string? ProgramsError { get; private set; }
     public bool ProgramsStarting { get; private set; }
 
-    readonly Dictionary<string, double> programToday = new(StringComparer.OrdinalIgnoreCase);
-    DateOnly programDay = DateOnly.FromDateTime(DateTime.Now);
     DateTime lastPoll = DateTime.MinValue;
     bool polling;
 
@@ -367,7 +377,6 @@ sealed class DataTideApp : ApplicationContext
             if (st == null) return;
             var now = DateTime.Now;
             var day = DateOnly.FromDateTime(now);
-            if (day != programDay) { programToday.Clear(); programDay = day; }
             double dt = lastPoll == DateTime.MinValue ? 0 : Math.Min(10, (now - lastPoll).TotalSeconds);
             lastPoll = now;
             // Several exes can share a name (two copies of one app): show them as one row.
@@ -375,13 +384,10 @@ sealed class DataTideApp : ApplicationContext
                 .GroupBy(p => ProgramNames.For(p.ExePath), StringComparer.CurrentCultureIgnoreCase)
                 .Select(g => (name: g.Key, path: g.First().ExePath, down: g.Sum(p => p.DownBytesPerSecond), up: g.Sum(p => p.UpBytesPerSecond)))
                 .ToList();
-            foreach (var m in merged)
-            {
-                programToday.TryGetValue(m.name, out var b);
-                programToday[m.name] = b + (m.down + m.up) * dt;
-            }
+            // Logged per day for the report; today's total in the flyout comes from the same log, so it survives restarts.
+            foreach (var m in merged) ProgramLog.Add(day, m.name, m.path, m.down * dt, m.up * dt);
             Programs = merged
-                .Select(m => new ProgramUsage(m.path, m.name, m.down, m.up, (long)programToday.GetValueOrDefault(m.name)))
+                .Select(m => new ProgramUsage(m.path, m.name, m.down, m.up, ProgramLog.DayTotal(day, m.name)))
                 .Where(p => p.Down + p.Up > 0 || p.Today > 0)
                 .OrderByDescending(p => p.Down + p.Up).ThenByDescending(p => p.Today)
                 .ToList();
@@ -426,7 +432,7 @@ sealed class DataTideApp : ApplicationContext
         if (installing) return;
         installing = true;
         Toasts.Show(L.T("AppName"), L.F("Updating", rel.Version.ToString(3)));
-        UsageStore.Save(Ledger);
+        SaveLogs();
         if (await Updater.InstallAsync(rel))
         {
             Exit();
@@ -485,7 +491,7 @@ sealed class DataTideApp : ApplicationContext
     public void Exit()
     {
         timer.Stop();
-        UsageStore.Save(Ledger);
+        SaveLogs();
         if (LimiterClient.HelperRunning)
             try { LimiterClient.StopAsync().Wait(2000); } catch { }
         if (widget.Handle != IntPtr.Zero) widget.DestroyHandle();

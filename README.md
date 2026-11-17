@@ -33,7 +33,7 @@ as PNG or PDF, and can cap the download and upload speed of any program. English
 - **Traffic flyout.** Click the widget for big live speeds, a one-minute graph, this month's total and how much each interface used today.
 - **Which programs use your network.** The flyout lists the busiest programs live, with their download and upload speed and how much data each used today. It reads Windows' own kernel network events, like Task Manager, so it needs administrator rights once per session; nothing about it leaves your PC. Click a program there to limit, block or pause it in one step.
 - **Daily data log.** Every interface is logged separately, hour by hour, on your PC. Keep 90 days, about a year, or everything.
-- **Reports.** Today, the last 7 or 30 days, this or last month, or all time: totals, a stacked chart with one colour per interface, a table per interface and a day-by-day table. Every number says which interface it belongs to.
+- **Reports.** Today, the last 7 or 30 days, this or last month, or all time: totals, a stacked chart with one colour per interface, a table per interface, a table per program (while the Programs list is on) and a day-by-day table. Every number says which interface it belongs to.
 - **Speed test.** Ping, jitter, download and upload against Cloudflare's servers, the way browser speed tests measure.
 - **How long will it take?** Enter a file size and a speed (or click Detect to use your last test) to see how long the download takes.
 - **Export.** Save any report as a crisp PNG or a multi-page A4 PDF, in English or Arabic.
@@ -116,7 +116,8 @@ Notes:
 | Updates | Check automatically, install automatically, check now |
 
 Settings are stored in `%APPDATA%\DataTide\settings.json` and the usage log in `%APPDATA%\DataTide\usage.csv`
-(one row per hour and interface: `hour,interface_id,interface_name,received,sent`). You can open the CSV in Excel.
+(one row per hour and interface: `hour,interface_id,interface_name,received,sent`). While the Programs list is on, data per program goes to
+`programs.csv` beside it (one row per day and program: `date,program,path,received,sent`). You can open both in Excel.
 
 ## Privacy
 

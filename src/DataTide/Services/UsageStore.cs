@@ -1,31 +1,47 @@
 namespace DataTide.Services;
 
-/// <summary>Loads and saves the usage ledger in %APPDATA%\DataTide\usage.csv (written to a temp file, then swapped in).</summary>
+/// <summary>
+/// Loads and saves the usage ledger (%APPDATA%\DataTide\usage.csv) and the per-program log (programs.csv),
+/// each written to a temp file and then swapped in.
+/// </summary>
 static class UsageStore
 {
     public static UsageLedger Load()
     {
         var l = new UsageLedger();
-        try
-        {
-            if (File.Exists(AppPaths.Usage))
-            {
-                using var r = new StreamReader(AppPaths.Usage);
-                l.Read(r);
-            }
-        }
-        catch (Exception ex) { Log.Error(ex); }
+        ReadFile(AppPaths.Usage, r => l.Read(r));
         return l;
     }
 
-    public static void Save(UsageLedger l)
+    public static ProgramLedger LoadPrograms()
+    {
+        var l = new ProgramLedger();
+        ReadFile(AppPaths.Programs, r => l.Read(r));
+        return l;
+    }
+
+    public static void Save(UsageLedger l) => WriteFile(AppPaths.Usage, l.Write);
+    public static void Save(ProgramLedger l) => WriteFile(AppPaths.Programs, l.Write);
+
+    static void ReadFile(string path, Action<TextReader> read)
+    {
+        try
+        {
+            if (!File.Exists(path)) return;
+            using var r = new StreamReader(path);
+            read(r);
+        }
+        catch (Exception ex) { Log.Error(ex); }
+    }
+
+    static void WriteFile(string path, Action<TextWriter> write)
     {
         try
         {
             Directory.CreateDirectory(AppPaths.Data);
-            var tmp = AppPaths.Usage + ".tmp";
-            using (var w = new StreamWriter(tmp)) l.Write(w);
-            File.Move(tmp, AppPaths.Usage, true);
+            var tmp = path + ".tmp";
+            using (var w = new StreamWriter(tmp)) write(w);
+            File.Move(tmp, path, true);
         }
         catch (Exception ex) { Log.Error(ex); }
     }

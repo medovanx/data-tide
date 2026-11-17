@@ -6,4 +6,5 @@ static class AppPaths
     public static readonly string Data = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "DataTide");
     public static string Settings => Path.Combine(Data, "settings.json");
     public static string Usage => Path.Combine(Data, "usage.csv");
+    public static string Programs => Path.Combine(Data, "programs.csv");
 }

@@ -34,11 +34,40 @@ static class DemoData
         return l;
     }
 
+    /// <summary>Made-up daily data per program for the report's By program table.</summary>
+    public static ProgramLedger ProgramLog(DateOnly today, int days = 30)
+    {
+        var l = new ProgramLedger();
+        var rnd = new Random(11);
+        (string name, string path, int down, int up)[] apps =
+        [
+            ("Example Launcher", @"C:\Program Files\Example Launcher\launcher.exe", 2600, 60),
+            ("Example Browser", @"C:\Program Files\Example Browser\browser.exe", 900, 70),
+            ("Video Player", @"C:\Program Files\Video Player\player.exe", 700, 10),
+            ("Cloud Sync", @"C:\Program Files\Cloud Sync\sync.exe", 120, 260),
+            ("Chat", @"C:\Program Files\Chat\chat.exe", 60, 40),
+            ("Mail", @"C:\Program Files\Mail\mail.exe", 25, 8),
+            ("Music", @"C:\Program Files\Music\music.exe", 40, 2),
+            ("Windows Update", @"C:\Windows\System32\svchost.exe", 300, 4),
+        ];
+        for (int d = days - 1; d >= 0; d--)
+        {
+            var day = today.AddDays(-d);
+            foreach (var (name, path, down, up) in apps)
+            {
+                if (rnd.Next(4) == 0) continue;
+                double k = rnd.Next(30, 170) / 100.0 * 1024 * 1024;
+                l.Add(day, name, path, down * k, up * k);
+            }
+        }
+        return l;
+    }
+
     /// <summary>Made-up programs for the flyout's Programs section.</summary>
     public static List<ProgramUsage> Programs() =>
     [
         new(@"C:\Program Files\Example Launcher\launcher.exe", "Example Launcher", 5.2 * 1024 * 1024, 64 * 1024, 2_400_000_000),
-        new(@"C:\Program Files\Example Browserrowser.exe", "Example Browser", 1.1 * 1024 * 1024, 120 * 1024, 860_000_000),
+        new(@"C:\Program Files\Example Browser\browser.exe", "Example Browser", 1.1 * 1024 * 1024, 120 * 1024, 860_000_000),
         new(@"C:\Program Files\Cloud Sync\sync.exe", "Cloud Sync", 12 * 1024, 410 * 1024, 310_000_000),
         new(@"C:\Program Files\Chat\chat.exe", "Chat", 34 * 1024, 18 * 1024, 95_000_000),
     ];

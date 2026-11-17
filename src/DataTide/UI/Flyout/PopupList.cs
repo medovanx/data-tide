@@ -94,8 +94,8 @@ sealed class PopupList : Control
             int textStart = 0;
             if (it.Glyph != null)
             {
-                int gw = Px(18);
-                Art.GlyphCentered(g, it.Glyph, 10 * S, new RectangleF(rtl ? inner.Right - gw : inner.Left, r.Top, gw, Px(32)), it.Danger ? danger : t.Dim);
+                int gw = Px(20);
+                Art.GlyphCentered(g, it.Glyph, 13 * S, new RectangleF(rtl ? inner.Right - gw : inner.Left, r.Top, gw, Px(32)), it.Danger ? danger : t.Dim);
                 textStart = gw + Px(8);
             }
             var tr = rtl ? new Rectangle(inner.Left, r.Top, inner.Width - textStart, Px(32)) : new Rectangle(inner.Left + textStart, r.Top, inner.Width - textStart, Px(32));

@@ -88,7 +88,7 @@ sealed class ReportForm : Form
     {
         var range = Ranges[Math.Max(0, cmbRange.SelectedIndex)];
         var (from, to) = UsageReport.Resolve(range, DateOnly.FromDateTime(DateTime.Now), app.Ledger.FirstDay());
-        current = UsageReport.Build(app.Ledger, from, to, ifaceIds[Math.Max(0, cmbIface.SelectedIndex)]);
+        current = UsageReport.Build(app.Ledger, from, to, ifaceIds[Math.Max(0, cmbIface.SelectedIndex)], app.ProgramLog);
         var pos = scroller.AutoScrollPosition;
         view.Width = scroller.ClientSize.Width;
         view.Show(current, FilterName);
