@@ -198,14 +198,41 @@ sealed class ReportRenderer
         return list;
     }
 
-    void Chart(Graphics g, int y)
+    void Chart(Graphics g, int y) =>
+        Stacked(g, y, r.Interfaces.Select(i => (i.InterfaceName, colors[i.InterfaceId])).ToList(),
+            (from, to) => r.Interfaces.Select(i => r.Rows.Where(x => x.InterfaceId == i.InterfaceId && x.Date >= from && x.Date <= to).Sum(x => x.Total)).ToArray());
+
+    /// <summary>Programs shown by name in the programs-over-time chart; the rest are summed as one series.</summary>
+    const int ChartPrograms = 5;
+
+    void ProgramChart(Graphics g, int y)
+    {
+        var top = r.Programs.Take(ChartPrograms).Select(p => p.Name).ToList();
+        bool other = r.Programs.Count > ChartPrograms;
+        var series = top.Select((n, i) => (n, Art.Series(i, t.Dark))).ToList();
+        if (other) series.Add((L.T("OtherProgramsShort"), t.Dim));
+        Stacked(g, y, series, (from, to) =>
+        {
+            var v = new long[series.Count];
+            for (var d = from; d <= to; d = d.AddDays(1))
+            {
+                long all = r.ProgramDaily.Where(kv => kv.Key.day == d).Sum(kv => kv.Value), named = 0;
+                for (int i = 0; i < top.Count; i++) { long x = r.ProgramOn(d, top[i]); v[i] += x; named += x; }
+                if (other) v[^1] += all - named;
+            }
+            return v;
+        });
+    }
+
+    /// <summary>A stacked bar chart per day (or month) with a legend, one colour per series.</summary>
+    void Stacked(Graphics g, int y, IReadOnlyList<(string label, Color color)> series, Func<DateOnly, DateOnly, long[]> valuesFor)
     {
         var box = new RectangleF(Margin, y, Content, P(288));
         Art.FillRound(g, box, P(12), t.Surface);
         using (var p = Art.RoundRect(box, P(12))) using (var pen = new Pen(t.Border, Math.Max(1, s))) g.DrawPath(pen, p);
 
         var buckets = Buckets();
-        var totals = buckets.Select(b => r.Interfaces.Select(i => r.Rows.Where(x => x.InterfaceId == i.InterfaceId && x.Date >= b.from && x.Date <= b.to).Sum(x => x.Total)).ToArray()).ToList();
+        var totals = buckets.Select(b => valuesFor(b.from, b.to)).ToList();
         long max = Math.Max(1, totals.Count == 0 ? 1 : totals.Max(a => a.Sum()));
         long step = NiceStep(max / 4.0);
         long top = Math.Max(step, (long)Math.Ceiling(max / (double)step) * step);
@@ -232,13 +259,13 @@ sealed class ReportRenderer
             int idx = rtl ? buckets.Count - 1 - i : i;
             float cx = plot.Left + slot * i + slot / 2;
             float yb = plot.Bottom;
-            for (int k = 0; k < r.Interfaces.Count; k++)
+            for (int k = 0; k < series.Count; k++)
             {
                 long v = totals[idx][k];
                 if (v <= 0) continue;
                 float h = (float)(plot.Height * v / (double)top);
                 var seg = new RectangleF(cx - barW / 2, yb - h, barW, h);
-                using var b = new SolidBrush(colors[r.Interfaces[k].InterfaceId]);
+                using var b = new SolidBrush(series[k].color);
                 g.FillRectangle(b, seg);
                 yb -= h;
             }
@@ -246,20 +273,20 @@ sealed class ReportRenderer
                 Text(g, buckets[idx].label, fAxis, new RectangleF(cx - slot * labelEvery / 2, plot.Bottom + P(4), slot * labelEvery, P(18)), t.Dim, StringAlignment.Center, false, ltr: !L.Ar || r.Days.Count > 7);
         }
 
-        // Legend: one swatch per interface.
+        // Legend: one swatch per series.
         float lx = 0;
         using var fLeg = F(11.5f);
         float ly = box.Bottom - legendH - P(2);
-        foreach (var i in r.Interfaces)
+        foreach (var (label, color) in series)
         {
-            float w = g.MeasureString(i.InterfaceName, fLeg).Width + P(30);
+            float w = g.MeasureString(label, fLeg).Width + P(30);
             if (lx + w > Content - P(32)) break;
             var sw = new RectangleF(X(P(16) + lx, P(12)), ly + P(9), P(12), P(12));
-            Art.FillRound(g, sw, P(3), colors[i.InterfaceId]);
-            Text(g, i.InterfaceName, fLeg, new RectangleF(X(P(16) + lx + P(18), w - P(18)), ly, w - P(18), P(30)), t.Text, StringAlignment.Near, false);
+            Art.FillRound(g, sw, P(3), color);
+            Text(g, label, fLeg, new RectangleF(X(P(16) + lx + P(18), w - P(18)), ly, w - P(18), P(30)), t.Text, StringAlignment.Near, false);
             lx += w + P(10);
         }
-        if (r.Interfaces.Count == 0)
+        if (series.Count == 0)
         {
             using var f = F(14);
             Text(g, L.T("NoData"), f, plot, t.Dim, StringAlignment.Center);
@@ -355,6 +382,12 @@ sealed class ReportRenderer
             using var f = F(11.5f);
             Text(g, L.T("ByProgramNote"), f, new RectangleF(Margin, y, Content, P(20)), t.Dim);
         }));
+        // The busiest programs day by day, above the table (only when there is something to chart).
+        if (r.Programs.Count > 0 && r.Days.Count > 1)
+        {
+            Blocks.Add(new ReportBlock(P(300), (g, y) => ProgramChart(g, y + P(6))));
+            Blocks.Add(new ReportBlock(P(10), (_, _) => { }));
+        }
         float[] cols = [0.40f, 0.17f, 0.17f, 0.15f, 0.11f];
         int rh = P(34);
         void Head(Graphics g, int y)

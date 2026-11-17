@@ -2,6 +2,7 @@ global using DataTide.Configuration;
 global using DataTide.Core.Formatting;
 global using DataTide.Core.Limiting;
 global using DataTide.Core.Usage;
+global using DataTide.Core.Network;
 global using DataTide.DevTools;
 global using DataTide.Interop;
 global using DataTide.Limiting;

@@ -102,9 +102,9 @@ public static class LimiterClient
     }
 
     /// Sends the rules (starts nothing by itself); false if the helper is not reachable.
-    public static async Task<bool> ApplyAsync(IReadOnlyList<LimitRule> rules)
+    public static async Task<bool> ApplyAsync(LimitPlan plan)
     {
-        string? line = await RequestAsync(new LimiterRequest { Cmd = "apply", Rules = [.. rules] }).ConfigureAwait(false);
+        string? line = await RequestAsync(new LimiterRequest { Cmd = "apply", Rules = [.. plan.Rules], Others = plan.Others }).ConfigureAwait(false);
         return line != null && Parse<LimiterReply>(line)?.Ok == true;
     }
 

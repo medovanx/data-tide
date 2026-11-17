@@ -78,6 +78,10 @@ static class DemoData
         Language = lang,
         InterfaceId = AppSettings.AutoInterface,
         LimitsEnabled = true,
+        GameMode = true,
+        Games = [@"C:\Games\Example Arena\arena.exe"],
+        MeteredBlock = true,
+        MeteredBlockList = [@"C:\Program Files\Cloud Sync\sync.exe"],
         Limits =
         [
             new LimitRule { ExePath = @"C:\Program Files\Example Launcher\launcher.exe", DownBytesPerSecond = 2048 * 1024, UpBytesPerSecond = 512 * 1024 },
@@ -85,6 +89,13 @@ static class DemoData
             new LimitRule { ExePath = @"C:\Tools\Downloader\downloader.exe", DownBytesPerSecond = 4096 * 1024, UpBytesPerSecond = 0, Enabled = false },
         ],
     };
+
+    /// <summary>A minute of pings: mostly steady, one lost.</summary>
+    public static IEnumerable<double?> Pings()
+    {
+        var rnd = new Random(5);
+        for (int i = 0; i < 60; i++) yield return i == 41 ? null : 16 + rnd.Next(0, 6);
+    }
 
     /// <summary>A minute of plausible speeds (a download ramping up while a video call uploads).</summary>
     public static IEnumerable<(double down, double up)> Minute()

@@ -11,6 +11,9 @@ sealed class DataTideApp : ApplicationContext
     public ProgramLedger ProgramLog { get; }
     public NetworkMonitor Monitor { get; } = new();
     public SpeedHistory History { get; } = new(60);
+    public GameWatcher GameWatch { get; }
+    public MeteredWatcher MeteredWatch { get; }
+    public PingMonitor Ping { get; } = new();
 
     /// <summary>Current speeds of the interface shown in the widget.</summary>
     public double Down { get; private set; }
@@ -65,6 +68,8 @@ sealed class DataTideApp : ApplicationContext
         if (ledger == null && Ledger.Remove(Monitor.FilterIds) > 0) UsageStore.Save(Ledger);
 
         host = new HostWindow(this);
+        GameWatch = new GameWatcher(() => S.GameMode ? S.Games : []);
+        MeteredWatch = new MeteredWatcher(host);
         // No tray icon: the widget is the app's surface (click, hover, right-click), messages go out as Windows notifications.
         if (Headless) return;
         Toasts.Register();
@@ -106,8 +111,14 @@ sealed class DataTideApp : ApplicationContext
         updateTimer.Tick += async (_, _) => { updateTimer.Interval = 6 * 3600 * 1000; await CheckForUpdatesAsync(false); };
         updateTimer.Start(); // first check 45 s after start, then every 6 hours
 
-        if (S.LimitsEnabled && S.Limits.Any(r => r.Enabled) && LimiterClient.DriverInstalled)
+        // Game mode and the metered block start the helper now, so its admin prompt never appears over a game.
+        if ((S.LimitsEnabled && S.Limits.Any(r => r.Enabled) || Armed) && LimiterClient.DriverInstalled)
             _ = StartLimitsAsync(userInitiated: false);
+        GameWatch.Changed += () => { _ = SyncLimitsAsync(); UpdateWidget(); };
+        MeteredWatch.Changed += () => { _ = SyncLimitsAsync(); UpdateWidget(); };
+        GameWatch.Start();
+        MeteredWatch.Start();
+        Ping.Configure(S.Ping, S.PingHost);
         if (S.ShowPrograms) _ = StartProgramsAsync();
     }
 
@@ -177,7 +188,7 @@ sealed class DataTideApp : ApplicationContext
 
     void UpdateWidget()
     {
-        bool limited = S.LimitsEnabled && LimiterClient.HelperRunning;
+        bool limited = Plan().Active && LimiterClient.HelperRunning;
         widget.SetContent(Rate(Up), Rate(Down), L.Ar, limited);
     }
 
@@ -264,8 +275,11 @@ sealed class DataTideApp : ApplicationContext
     public void ApplySettings(AppSettings s)
     {
         bool langChanged = s.Language != S.Language;
-        bool limitsChanged = s.LimitsEnabled != S.LimitsEnabled
-            || System.Text.Json.JsonSerializer.Serialize(s.Limits) != System.Text.Json.JsonSerializer.Serialize(S.Limits);
+        static string LimitState(AppSettings a) => System.Text.Json.JsonSerializer.Serialize(new
+        {
+            a.LimitsEnabled, a.Limits, a.GameMode, a.Games, a.GameOthersDown, a.GameOthersUp, a.MeteredBlock, a.MeteredBlockList,
+        });
+        bool limitsChanged = LimitState(s) != LimitState(S);
         S = s;
         L.Ar = S.Language == "ar";
         S.Save();
@@ -279,10 +293,47 @@ sealed class DataTideApp : ApplicationContext
         History.Clear();
         UpdateWidget();
         widget.Invalidate();
-        if (limitsChanged) _ = SyncLimitsAsync();
+        if (!Headless) Ping.Configure(S.Ping, S.PingHost);
+        if (limitsChanged)
+        {
+            _ = GameWatch.CheckAsync();
+            _ = SyncLimitsAsync();
+        }
+    }
+
+    /// <summary>"Ping 18 ms  jitter 2 ms  loss 0%" and a colour for its quality, or null while ping is off or has no samples.</summary>
+    public (string text, Color quality)? PingSummary()
+    {
+        if (!S.Ping) return null;
+        var (last, avg, jitter, loss, n) = Ping.Stats.Summary();
+        if (n == 0) return null;
+        string ms(double v) => L.Ltr($"{v:0} ms");
+        string head = last is double l ? L.F("PingLine", ms(l)) : L.F("PingLine", L.T("PingNoReply"));
+        string text = $"{head}   {L.F("PingJitter", ms(jitter))}   {L.F("PingLoss", L.Ltr($"{loss:0}%"))}";
+        double v = last ?? 999;
+        Color q = last == null || loss >= 10 || v >= 150 ? Color.FromArgb(232, 72, 85)
+                : v >= 80 || loss > 0 ? Art.UpGlow
+                : Color.FromArgb(52, 199, 120);
+        return (text, q);
     }
 
     // ---------- limits ----------
+
+    /// <summary>
+    /// What the limiter enforces now: the user's rules, plus the metered block while the connection is metered and
+    /// game mode's shared limit while a game runs. Every apply goes through here so no overlay is ever wiped.
+    /// </summary>
+    public LimitPlan Plan() => LimitPlan.Build(S.LimitsEnabled, S.Limits,
+        S.GameMode && GameWatch.Running != null, S.Games, S.GameOthersDown, S.GameOthersUp,
+        S.MeteredBlock && MeteredWatch.Metered, S.MeteredBlockList, Environment.ProcessPath);
+
+    /// <summary>Game mode or the metered block is set up, so the helper should be ready before it is needed.</summary>
+    public bool Armed => (S.GameMode && S.Games.Count > 0) || (S.MeteredBlock && S.MeteredBlockList.Count > 0);
+
+    /// <summary>Game mode is holding other programs back right now.</summary>
+    public bool GameModeActive => S.GameMode && GameWatch.Running != null && LimiterClient.HelperRunning;
+    /// <summary>The metered block is cutting programs off right now.</summary>
+    public bool MeteredActive => S.MeteredBlock && MeteredWatch.Metered && S.MeteredBlockList.Count > 0 && LimiterClient.HelperRunning;
 
     /// <summary>Starts the elevated helper if needed and sends the rules. Returns a status line, empty on success.</summary>
     public async Task<string> StartLimitsAsync(bool userInitiated)
@@ -294,7 +345,7 @@ sealed class DataTideApp : ApplicationContext
             Toasts.Show(L.T("AppName"), L.T("LimiterDeclined"));
             return L.T("LimiterDeclined");
         }
-        bool ok = await LimiterClient.ApplyAsync(S.Limits.Where(r => r.Enabled).ToList());
+        bool ok = await LimiterClient.ApplyAsync(Plan());
         UpdateWidget();
         return ok ? "" : L.T("LimiterUnreachable");
     }
@@ -319,11 +370,11 @@ sealed class DataTideApp : ApplicationContext
 
     public async Task<string> SyncLimitsAsync()
     {
-        if (S.LimitsEnabled && S.Limits.Any(r => r.Enabled)) return await StartLimitsAsync(userInitiated: true);
+        if (Plan().Active) return await StartLimitsAsync(userInitiated: true);
         if (LimiterClient.HelperRunning)
         {
-            // The helper also feeds the Programs list: keep it, just without rules, while that is shown.
-            if (S.ShowPrograms) await LimiterClient.ApplyAsync([]);
+            // The helper also feeds the Programs list and waits for game mode or a metered network: keep it, without rules.
+            if (S.ShowPrograms || Armed) await LimiterClient.ApplyAsync(LimitPlan.Empty);
             else await LimiterClient.StopAsync();
         }
         UpdateWidget();
@@ -355,7 +406,7 @@ sealed class DataTideApp : ApplicationContext
                 return;
             }
             ProgramsError = await LimiterClient.MonitorAsync();
-            if (ProgramsError == null && !S.LimitsEnabled) await LimiterClient.ApplyAsync([]);
+            if (ProgramsError == null) await LimiterClient.ApplyAsync(Plan());
             if (ProgramsError == null) await PollProgramsAsync();
         }
         finally { ProgramsStarting = false; }
@@ -367,7 +418,7 @@ sealed class DataTideApp : ApplicationContext
         S.Save();
         if (on) { await StartProgramsAsync(); return; }
         Programs = [];
-        if (LimiterClient.HelperRunning && !(S.LimitsEnabled && S.Limits.Any(r => r.Enabled))) await LimiterClient.StopAsync();
+        if (LimiterClient.HelperRunning && !Plan().Active && !Armed) await LimiterClient.StopAsync();
     }
 
     async Task PollProgramsAsync()
@@ -575,6 +626,9 @@ sealed class DataTideApp : ApplicationContext
     public void Exit()
     {
         timer.Stop();
+        Ping.Dispose();
+        GameWatch.Dispose();
+        MeteredWatch.Dispose();
         SaveLogs();
         if (LimiterClient.HelperRunning)
             try { LimiterClient.StopAsync().Wait(2000); } catch { }

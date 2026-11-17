@@ -21,6 +21,7 @@ static class Shots
         {
             var app = new DataTideApp(DemoData.Settings(lang), ledger);
             app.Demo(DemoData.Interfaces[0], DemoData.Minute());
+            foreach (var ms in DemoData.Pings()) app.Ping.Stats.Add(ms);
 
             WidgetStrip(Path.Combine(dir, $"widget-{lang}.png"), app.Rate(app.Up), app.Rate(app.Down), lang == "ar");
             WidgetStrip(Path.Combine(dir, $"widget-limited-{lang}.png"), app.Rate(app.Up), app.Rate(app.Down), lang == "ar", limited: true);

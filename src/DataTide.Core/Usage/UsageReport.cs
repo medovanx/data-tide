@@ -14,6 +14,11 @@ public sealed class UsageReport
     /// <summary>Data per program over the range, busiest first; empty when the Programs list was never on.
     /// Not split by interface: Windows reports a program's traffic without the adapter it went through.</summary>
     public IReadOnlyList<ProgramTotal> Programs { get; private init; } = [];
+    /// <summary>Bytes per day and program name over the range, for the programs-over-time chart.</summary>
+    public IReadOnlyDictionary<(DateOnly day, string name), long> ProgramDaily { get; private init; } = new Dictionary<(DateOnly, string), long>();
+
+    /// <summary>One program's bytes on one day (zero when it wasn't seen).</summary>
+    public long ProgramOn(DateOnly day, string name) => ProgramDaily.TryGetValue((day, name), out var v) ? v : 0;
 
     public long Received => Interfaces.Sum(i => i.Received);
     public long Sent => Interfaces.Sum(i => i.Sent);
@@ -37,7 +42,7 @@ public sealed class UsageReport
     {
         if (to < from) (from, to) = (to, from);
         var rows = ledger.Days(from, to).Where(r => interfaceId == null || r.InterfaceId == interfaceId).ToList();
-        return new UsageReport(from, to, rows) { Programs = programs?.Range(from, to) ?? [] };
+        return new UsageReport(from, to, rows) { Programs = programs?.Range(from, to) ?? [], ProgramDaily = programs?.DailyTotals(from, to) ?? new Dictionary<(DateOnly, string), long>() };
     }
 
     /// <summary>Totals for one day on one interface (zero when nothing was logged).</summary>

@@ -37,7 +37,7 @@ sealed unsafe class LimiterEngine : IDisposable
     nint* toAdapter;
     nint* toStack;
     int adapterCount, stackCount;
-    List<LimitRule>? pendingRules;
+    (List<LimitRule> rules, CatchAllLimit? others)? pendingRules;
     int activeRules;
     volatile nint[] tunnelledSnapshot = [];
     Thread? worker;
@@ -86,14 +86,26 @@ sealed unsafe class LimiterEngine : IDisposable
         return true;
     }
 
-    /// <summary>Replaces all rules. Takes effect on the worker within a moment; packets held for a cleared limit are sent on.</summary>
-    public void Apply(IReadOnlyList<LimitRule> rules)
+    /// <summary>
+    /// Replaces all rules, and game mode's shared limit for everything else (null for none). Takes effect on the
+    /// worker within a moment; packets held for a cleared limit are sent on.
+    /// </summary>
+    public void Apply(IReadOnlyList<LimitRule> rules, CatchAllLimit? others = null)
     {
         var copy = rules.Where(r => r != null).Select(r => r.Clone()).ToList();
-        lock (rulesGate) pendingRules = copy;
-        Volatile.Write(ref activeRules, copy.Count(r => r.Limits(Direction.Download) || r.Limits(Direction.Upload)));
+        if (others != null && others.DownBytesPerSecond <= 0 && others.UpBytesPerSecond <= 0) others = null;
+        lock (rulesGate) pendingRules = (copy, others);
+        Volatile.Write(ref activeRules, copy.Count(r => r.Limits(Direction.Download) || r.Limits(Direction.Upload)) + (others != null ? 1 : 0));
         wake.Set();
     }
+
+    /// <summary>The shaper key of the shared limit; no exe path can look like it.</summary>
+    const string OthersKey = "\0OTHERS";
+    /// <summary>Programs with a rule of their own (normalised paths): they never fall into the shared limit.</summary>
+    readonly HashSet<string> ruled = new(StringComparer.OrdinalIgnoreCase);
+    /// <summary>Programs the shared limit leaves alone (the games, Data Tide).</summary>
+    readonly HashSet<string> othersExcept = new(StringComparer.OrdinalIgnoreCase);
+    bool othersOn;
 
     void Work()
     {
@@ -149,20 +161,33 @@ sealed unsafe class LimiterEngine : IDisposable
 
     void TakeRules(double now)
     {
-        List<LimitRule>? rules;
+        (List<LimitRule> rules, CatchAllLimit? others)? pending;
         lock (rulesGate)
         {
-            rules = pendingRules;
+            pending = pendingRules;
             pendingRules = null;
         }
-        if (rules == null) return;
+        if (pending is not var (rules, others)) return;
 
         var wanted = new Dictionary<string, LimitRule>(StringComparer.OrdinalIgnoreCase);
         foreach (var r in rules)
             if (r.Enabled && !string.IsNullOrWhiteSpace(r.ExePath)) wanted[NormalizePath(r.ExePath)] = r;
 
         foreach (var (key, dir) in shaper.Limited())
-            if (!wanted.TryGetValue(key, out var r) || !r.Limits(dir)) Forward(shaper.SetLimit(key, dir, 0, now));
+            if (key != OthersKey && (!wanted.TryGetValue(key, out var r) || !r.Limits(dir))) Forward(shaper.SetLimit(key, dir, 0, now));
+        ruled.Clear();
+        ruled.UnionWith(wanted.Keys);
+        othersExcept.Clear();
+        othersOn = others != null;
+        foreach (var dir in (ReadOnlySpan<Direction>)[Direction.Download, Direction.Upload])
+        {
+            long rate = others?.RateFor(dir) ?? 0;
+            if (rate > 0) shaper.SetLimit(OthersKey, dir, rate, now);
+            else Forward(shaper.SetLimit(OthersKey, dir, 0, now));
+        }
+        if (others != null)
+            foreach (var e in others.Except)
+                if (!string.IsNullOrWhiteSpace(e)) othersExcept.Add(NormalizePath(e));
         blocked.Clear();
         foreach (var (path, r) in wanted)
         {
@@ -310,7 +335,7 @@ sealed unsafe class LimiterEngine : IDisposable
         }
         var dir = (h->DeviceFlags & NdisConstants.PacketFlagOnSend) != 0 ? Direction.Upload : Direction.Download;
         var frame = new ReadOnlySpan<byte>((byte*)p + IntermediateBufferHeader.Size, len);
-        var owner = PacketParser.TryGetLocalEnd(frame, dir, out var key) ? resolver.Find(key) : null;
+        var owner = PacketParser.TryGetFlow(frame, dir, out var key, out ushort remotePort) ? resolver.Find(key) : null;
         if (owner == null)
         {
             Forward(p);
@@ -323,7 +348,10 @@ sealed unsafe class LimiterEngine : IDisposable
             pool!.Return(p);
             return;
         }
-        switch (shaper.Offer(owner.Key, dir, p, len, now))
+        // Game mode: a program without a rule of its own shares the "everything else" limit, except the games
+        // and DNS lookups (svchost does those for every program, the game included).
+        string shapeKey = othersOn && remotePort != 53 && !ruled.Contains(owner.Key) && !othersExcept.Contains(owner.Key) ? OthersKey : owner.Key;
+        switch (shaper.Offer(shapeKey, dir, p, len, now))
         {
             case ShapeDecision.Pass:
                 Forward(p);

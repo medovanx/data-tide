@@ -37,6 +37,20 @@ public sealed class AppSettings
     /// <summary>Unit the Limits page shows speeds in; limits are stored in bytes per second either way.</summary>
     public RateUnit LimitUnit { get; set; } = RateUnit.KBps;
 
+    /// <summary>Game mode: while one of <see cref="Games"/> runs, every other program together is held to these speeds.</summary>
+    public bool GameMode { get; set; }
+    public List<string> Games { get; set; } = [];
+    public long GameOthersDown { get; set; } = 512 * 1024;
+    public long GameOthersUp { get; set; } = 128 * 1024;
+
+    /// <summary>Cut these programs off while the connection is metered (a hotspot or mobile plan).</summary>
+    public bool MeteredBlock { get; set; }
+    public List<string> MeteredBlockList { get; set; } = [];
+
+    /// <summary>Ping this host once a second for the flyout and hover card.</summary>
+    public bool Ping { get; set; } = true;
+    public string PingHost { get; set; } = "1.1.1.1";
+
     public bool AutoCheckUpdates { get; set; } = true;
     public bool AutoInstallUpdates { get; set; } = true;
     public DateTime LastUpdateCheckUtc { get; set; }

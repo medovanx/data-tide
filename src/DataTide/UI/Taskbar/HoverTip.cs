@@ -63,7 +63,7 @@ sealed class HoverTip : Form
         dark = darkTheme;
         RightToLeft = L.Ar ? RightToLeft.Yes : RightToLeft.No;
         BackColor = new Theme(dark).Surface;
-        Size = new Size(Px(250), Px(92));
+        Size = new Size(Px(250), Px(app.PingSummary() == null ? 92 : 118));
         Location = new Point(-4000, -4000);
         Show();
     }
@@ -74,7 +74,7 @@ sealed class HoverTip : Form
         dark = Native.SystemDark();
         RightToLeft = L.Ar ? RightToLeft.Yes : RightToLeft.No;
         BackColor = new Theme(dark).Surface;
-        Size = new Size(Px(250), Px(92));
+        Size = new Size(Px(250), Px(app.PingSummary() == null ? 92 : 118));
         var wa = Screen.FromRectangle(a).WorkingArea;
         int x = Math.Clamp(a.Left + a.Width / 2 - Width / 2, wa.Left + Px(6), wa.Right - Width - Px(6));
         Location = new Point(x, wa.Bottom - Height - Px(8));
@@ -119,5 +119,13 @@ sealed class HoverTip : Form
         Line(Px(8), L.T("Today"), app.TodayTotal);
         using (var pen = new Pen(t.Border)) g.DrawLine(pen, pad, Px(46), Width - pad, Px(46));
         Line(Px(50), L.T("ThisMonth"), app.MonthTotal);
+        if (app.PingSummary() is var (pingText, quality))
+        {
+            using (var pen = new Pen(t.Border)) g.DrawLine(pen, pad, Px(88), Width - pad, Px(88));
+            int d = Px(7), dx = rtl ? Width - pad - d : pad;
+            using (var qb = new SolidBrush(quality)) g.FillEllipse(qb, dx, Px(92) + (Px(20) - d) / 2f, d, d);
+            var pr = rtl ? new Rectangle(pad, Px(92), Width - pad * 2 - d - Px(6), Px(20)) : new Rectangle(pad + d + Px(6), Px(92), Width - pad * 2 - d - Px(6), Px(20));
+            TextRenderer.DrawText(g, pingText, fSmall, pr, t.Text, near | TextFormatFlags.VerticalCenter | TextFormatFlags.EndEllipsis);
+        }
     }
 }

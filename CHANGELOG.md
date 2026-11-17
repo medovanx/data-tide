@@ -3,6 +3,14 @@
 All notable changes to Data Tide are listed here.
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and versions follow [Semantic Versioning](https://semver.org/).
 
+## [1.4.0] - 2026-11-17
+
+### Added
+- Game mode (Settings, Automatic): pick your games, and while one runs every other program together is held to a speed you set (512 KB/s down and 128 KB/s up by default). Programs with their own limit keep it, DNS lookups always pass, and it switches on and off as games start and quit. The flyout's limits line says when it is at work.
+- Metered networks (Settings, Automatic): pick programs to cut off while Windows says the connection is metered, such as a phone hotspot or mobile plan.
+- Ping, jitter and loss to a server you choose (1.1.1.1 by default), in the flyout's graph and the hover card, with a coloured quality dot. Turn it off or change the server in Settings, Network.
+- Reports chart the five busiest programs day by day above the By program table.
+
 ## [1.3.5] - 2026-11-17
 
 ### Fixed
@@ -109,6 +117,7 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and 
 - A small amber dot on the widget replaces the outline while limits are active.
 - One-click driver install: downloads the official Windows Packet Filter installer from NT Kernel's GitHub release, checks its SHA-256 and runs it.
 
+[1.4.0]: https://github.com/medovanx/data-tide/releases/tag/v1.4.0
 [1.3.5]: https://github.com/medovanx/data-tide/releases/tag/v1.3.5
 [1.3.4]: https://github.com/medovanx/data-tide/releases/tag/v1.3.4
 [1.3.3]: https://github.com/medovanx/data-tide/releases/tag/v1.3.3

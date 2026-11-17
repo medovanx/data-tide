@@ -81,7 +81,7 @@ sealed class LimiterServer(LimiterEngine engine, int parentPid, string pipeName,
         {
             case "apply":
                 if (!engine.Running) return Reply(false, engine.Status().Error ?? "The speed limiter is not running.");
-                engine.Apply(req.Rules ?? []);
+                engine.Apply(req.Rules ?? [], req.Others);
                 return Reply(true, null);
             case "status":
             {

@@ -21,6 +21,8 @@ static class Program
         }
         if (args.Length > 2 && args[0] == "--monitor-probe")
             return MonitorProbe.Run(args[1], int.Parse(args[2], System.Globalization.CultureInfo.InvariantCulture));
+        if (args.Length > 1 && args[0] == "--widget-preview")
+            return WidgetPreview.Run(args[1]);
         if (args.Length > 1 && args[0] == "--shots")
             return Shots.Run(args[1]);
         if (args.Length > 1 && args[0] == "--render-icon")

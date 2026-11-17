@@ -426,6 +426,15 @@ sealed class TrafficFlyout : Form
         DrawGraph(g, Rectangle.FromLTRB(gr.Left + Px(8), gr.Top + Px(24), gr.Right - Px(8), gr.Bottom - Px(8)), t, rtl);
         string peak = $"{L.T("Peak")} \u200e{app.Rate(app.History.Peak)}"; // the mark keeps "6.98 MB/s" in order in Arabic
         TextRenderer.DrawText(g, peak, fLabel, new Rectangle(gr.Left + Px(10), gr.Top + Px(4), gr.Width - Px(20), Px(16)), t.Dim, far);
+        if (app.PingSummary() is var (pingText, quality))
+        {
+            // Ping on the near side of the graph's top line, with a dot coloured by how good it is.
+            int d = Px(7), px0 = rtl ? gr.Right - Px(10) - d : gr.Left + Px(10);
+            using (var qb = new SolidBrush(quality)) g.FillEllipse(qb, px0, gr.Top + Px(4) + (Px(16) - d) / 2f, d, d);
+            var pr = rtl ? new Rectangle(gr.Left + Px(10), gr.Top + Px(4), gr.Width - Px(26) - d, Px(16))
+                         : new Rectangle(px0 + d + Px(6), gr.Top + Px(4), gr.Width - Px(26) - d, Px(16));
+            TextRenderer.DrawText(g, pingText, fLabel, pr, t.Dim, near | TextFormatFlags.EndEllipsis);
+        }
 
         // This month, all logged interfaces together.
         int y = gr.Bottom + Px(18);
@@ -560,6 +569,17 @@ sealed class TrafficFlyout : Form
         string lim = !app.S.LimitsEnabled || limitedCount == 0 ? L.T("LimitsOff")
                    : LimiterClient.HelperRunning ? L.F(limitedCount == 1 ? "LimitsOnOne" : "LimitsOn", limitedCount) : L.T("LimitsPaused");
         Color limC = app.S.LimitsEnabled && LimiterClient.HelperRunning && limitedCount > 0 ? t.Up : t.Dim;
+        // Game mode or the metered block at work says so here, since they act without the switch.
+        if (app.GameModeActive)
+        {
+            lim = L.F("GameModeActive", ProgramNames.For(app.GameWatch.Running!));
+            limC = t.Up;
+        }
+        else if (app.MeteredActive)
+        {
+            lim = L.F("MeteredActive", app.S.MeteredBlockList.Count);
+            limC = t.Up;
+        }
         using var fIcon = new Font(Art.IconFontName, 13f);
         int iconW = Px(24);
         var ir = new Rectangle(rtl ? Width - pad - iconW : pad, y, iconW, Px(28));

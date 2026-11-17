@@ -31,13 +31,16 @@ as PNG or PDF, and can cap the download and upload speed of any program. English
 - **Pick the interface.** Auto follows the connection Windows uses to reach the internet (Wi-Fi, Ethernet, a VPN...) and switches by itself, or pin any adapter. Click the interface at the top of the flyout, or right-click the widget, to switch quickly.
 - **Monthly usage at a glance.** Rest the mouse on the widget to see today's and this month's data, split into download and upload.
 - **Traffic flyout.** Click the widget for big live speeds, a one-minute graph, this month's total and how much each interface used today.
+- **Ping, jitter and loss.** One small ping a second to a server you choose (1.1.1.1 by default) shows in the flyout and the hover card, with a green, amber or red dot. Point it at your game's server to see whether lag comes from your connection.
 - **Which programs use your network.** The flyout lists the busiest programs live, with their download and upload speed and how much data each used today. It reads Windows' own kernel network events, like Task Manager, so it needs administrator rights once per session; nothing about it leaves your PC. Click a program there to limit, block or pause it in one step.
 - **Daily data log.** Every interface is logged separately, hour by hour, on your PC. Keep 90 days, about a year, or everything.
-- **Reports.** Today, the last 7 or 30 days, this or last month, or all time: totals, a stacked chart with one colour per interface, a table per interface, a table per program (while the Programs list is on) and a day-by-day table. Every number says which interface it belongs to.
+- **Reports.** Today, the last 7 or 30 days, this or last month, or all time: totals, a stacked chart with one colour per interface, a table per interface, a chart and table per program (while the Programs list is on) and a day-by-day table. Every number says which interface it belongs to.
 - **Speed test.** Ping, jitter, download and upload against Cloudflare's servers, the way browser speed tests measure.
 - **How long will it take?** Enter a file size and a speed (or click Detect to use your last test) to see how long the download takes.
 - **Export.** Save any report as a crisp PNG or a multi-page A4 PDF, in English or Arabic.
 - **Per-app speed limits.** Cap the download and upload speed of any program, for example a game launcher or a cloud sync app, while everything else runs at full speed. See [Speed limits](#speed-limits).
+- **Game mode.** Pick your games; while one runs, every other program together is held to a speed you set, so a launcher update or a cloud sync can't cause lag. It switches on and off by itself.
+- **Metered networks.** Pick programs to cut off while you're on a phone hotspot, a mobile plan or any network Windows marks as metered.
 - **English and Arabic.** Full right-to-left layout in Arabic. Light and dark theme follow Windows.
 - **Auto-updates.** Checks GitHub Releases, verifies the download's SHA-256 and updates itself in place.
 - **No tray icon.** The widget is the whole app: click it, hover it, right-click it. Messages such as updates arrive as normal Windows notifications.
@@ -132,6 +135,7 @@ Data Tide has no account, analytics or tracking. Your usage log never leaves you
 | --- | --- | --- |
 | [GitHub API](https://docs.github.com/rest/releases) | Update checks, and finding the driver installer when you click Install | Nothing besides the request |
 | [Cloudflare speed test](https://speed.cloudflare.com/) | Only when you run a speed test (or Detect without a previous test) | Test data only: about 20 seconds of downloads and uploads of random bytes |
+| The ping server you set (default [Cloudflare 1.1.1.1](https://one.one.one.one/)) | Once a second while ping is on (Settings, Network) | One small ICMP echo request, nothing else |
 | [GitHub Releases of wiresock/ndisapi](https://github.com/wiresock/ndisapi/releases) | Only when you click **Install the driver** | Nothing besides the download |
 
 Turn off update checks for a fully offline app. To find the "Auto" interface Data Tide asks the Windows routing table which adapter would reach `1.1.1.1`; no packet is sent there. Speed limits read packet headers on your PC only to find which program a packet belongs to; nothing is stored or sent.
@@ -239,6 +243,9 @@ The [release workflow](.github/workflows/release.yml) runs the tests, builds the
 - تقارير بالرسوم والجداول يمكن حفظها كصورة PNG أو ملف PDF
 - اختبار سرعة الإنترنت، وحساب مدة تنزيل ملف بحجم وسرعة معينين
 - تحديد سرعة التنزيل والرفع لكل برنامج (يتطلب برنامج التشغيل المجاني Windows Packet Filter)
+- وضع الألعاب: أثناء تشغيل لعبتك تُحدَّد سرعة باقي البرامج تلقائيًا حتى لا يحدث تأخير
+- حظر برامج تختارها عند الاتصال بشبكة محدودة مثل نقطة اتصال الهاتف
+- زمن الاستجابة والتذبذب ونسبة الفقد لخادم تختاره
 - واجهة عربية كاملة من اليمين إلى اليسار، ووضع داكن وفاتح يتبع ويندوز
 - تحديث تلقائي آمن من GitHub
 

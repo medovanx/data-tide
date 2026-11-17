@@ -86,6 +86,19 @@ public class PacketParserTests
     }
 
     [Fact]
+    public void Remote_port_is_the_far_end_both_ways()
+    {
+        var up = Ipv4Frame(17, Local4, Remote4, 50000, 53);
+        Assert.True(PacketParser.TryGetFlow(up, Direction.Upload, out var k1, out var r1));
+        Assert.Equal(50000, k1.LocalPort);
+        Assert.Equal(53, r1);
+        var down = Ipv4Frame(17, Remote4, Local4, 53, 50000);
+        Assert.True(PacketParser.TryGetFlow(down, Direction.Download, out var k2, out var r2));
+        Assert.Equal(50000, k2.LocalPort);
+        Assert.Equal(53, r2);
+    }
+
+    [Fact]
     public void Ipv4_options_are_skipped_using_the_header_length()
     {
         var frame = Ipv4Frame(6, Remote4, Local4, 80, 61000, optionWords: 2);

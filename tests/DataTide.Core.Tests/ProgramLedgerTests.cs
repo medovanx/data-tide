@@ -49,6 +49,21 @@ public class ProgramLedgerTests
     }
 
     [Fact]
+    public void DailyTotalsPerDayAndName()
+    {
+        var l = new ProgramLedger();
+        l.Add(D1, "Chat", "", 10, 5);
+        l.Add(D2, "Chat", "", 1, 1);
+        l.Add(D3, "Chat", "", 99, 99);
+        var d = l.DailyTotals(D1, D2);
+        Assert.Equal(2, d.Count);
+        Assert.Equal(15, d[(D1, "Chat")]);
+        var rep = UsageReport.Build(new UsageLedger(), D1, D2, programs: l);
+        Assert.Equal(2, rep.ProgramOn(D2, "Chat"));
+        Assert.Equal(0, rep.ProgramOn(D3, "Chat"));
+    }
+
+    [Fact]
     public void PruneDropsOldDays()
     {
         var l = new ProgramLedger();

@@ -5,7 +5,7 @@ namespace DataTide.UI.Settings;
 /// <summary>Settings in the Windows 11 Settings style: a sidebar of pages, each a rounded card.</summary>
 sealed class SettingsForm : Form
 {
-    public const int GeneralPage = 0, NetworkPage = 1, LimitsPage = 2, UpdatesPage = 3;
+    public const int GeneralPage = 0, NetworkPage = 1, LimitsPage = 2, AutoPage = 3, UpdatesPage = 4;
 
     readonly DataTideApp app;
     readonly AppSettings s;
@@ -39,6 +39,12 @@ sealed class SettingsForm : Form
     readonly LiveList liveList = new() { Margin = new Padding(0, 0, 0, 4) };
     readonly Dictionary<string, string> friendly = new(StringComparer.OrdinalIgnoreCase);
     readonly List<string> procPaths = [];
+    /// <summary>Running programs, gathered once for every program picker on the pages.</summary>
+    readonly List<ProgramListEditor.Choice> running = [];
+    readonly ToggleSwitch tglGame = new(), tglMetered = new(), tglPing = new();
+    readonly ThemedNumber numGameDown = new() { Minimum = 0, Maximum = 1_000_000, Width = 112 };
+    readonly ThemedNumber numGameUp = new() { Minimum = 0, Maximum = 1_000_000, Width = 112 };
+    readonly ThemedText txtPingHost = new() { Width = 200 };
     readonly System.Windows.Forms.Timer liveTimer = new() { Interval = 1500 };
     // Updates
     readonly ToggleSwitch tglAutoCheck = new(), tglAutoInstall = new();
@@ -74,6 +80,7 @@ sealed class SettingsForm : Form
         BuildGeneral();
         BuildNetwork();
         BuildLimits();
+        BuildAuto();
         BuildUpdates();
 
         nav = new NavList(pages.Select(p => (p.glyph, p.title)).ToArray(), t) { Dock = L.Ar ? DockStyle.Right : DockStyle.Left, Width = 210 };
@@ -193,8 +200,14 @@ sealed class SettingsForm : Form
         var autoNote = new Label { Text = L.T("AutoInterfaceNote"), AutoSize = true, MaximumSize = new Size(490, 0), Tag = "dim", Margin = new Padding(0, 0, 0, 6) };
         var virtualNote = new Label { Text = L.T("LogVirtualNote"), AutoSize = true, MaximumSize = new Size(490, 0), Tag = "dim", Margin = new Padding(0, 0, 0, 6) };
         var logNote = new Label { Text = L.T("LogNote"), AutoSize = true, MaximumSize = new Size(490, 0), Tag = "dim", Margin = new Padding(0, 6, 0, 6) };
+        tglPing.Checked = s.Ping;
+        txtPingHost.Text = s.PingHost;
+        txtPingHost.PlaceholderText = "1.1.1.1";
+        var pingNote = new Label { Text = L.T("PingNote"), AutoSize = true, MaximumSize = new Size(490, 0), Tag = "dim", Margin = new Padding(0, 0, 0, 6) };
+        tglPing.CheckedChanged += (_, _) => SyncEnabled();
         AddPage(Art.IconNetwork, L.T("Network"),
             Card(L.T("WidgetInterface"), Art.IconNetwork, Stacked(L.T("Interface"), cmbIface), autoNote),
+            Card(L.T("Ping"), "\uE9D9", Row(L.T("PingShow"), tglPing), Row(L.T("PingHost"), txtPingHost), pingNote),
             Card(L.T("UsageLog"), Art.IconChart, Row(L.T("LogUsage"), tglLog), Row(L.T("LogVirtual"), tglVirtual), virtualNote, Row(L.T("KeepHistory"), cmbKeep), keepCustomRow = Row(L.T("KeepDays"), numKeep), logNote, Flow(btnFolder, btnClear)));
     }
 
@@ -254,6 +267,54 @@ sealed class SettingsForm : Form
         UpdateDriverText();
     }
 
+    /// <summary>Game mode and the metered block: rules that switch themselves on and off.</summary>
+    void BuildAuto()
+    {
+        if (running.Count == 0) FillProcesses();
+        tglGame.Checked = s.GameMode;
+        tglMetered.Checked = s.MeteredBlock;
+        var gameNote = new Label { Text = L.T("GameModeNote"), AutoSize = true, MaximumSize = new Size(490, 0), Tag = "dim", Margin = new Padding(0, 0, 0, 8) };
+        var games = new ProgramListEditor(s.Games, t, tip, running, L.T("NoGames")) { RightToLeft = RightToLeft };
+        numGameDown.Value = RateUnits.FromBytes(s.GameOthersDown, s.LimitUnit);
+        numGameUp.Value = RateUnits.FromBytes(s.GameOthersUp, s.LimitUnit);
+        var speeds = new FlowLayoutPanel { AutoSize = true, WrapContents = false, Margin = Padding.Empty };
+        var unit = new Label { Text = RateUnits.Label(s.LimitUnit), AutoSize = true, Tag = "dim", Margin = new Padding(6, 7, 0, 0) };
+        speeds.Controls.Add(new ArrowGlyph { Up = false, Theme = t, Margin = new Padding(0, 0, 3, 0) });
+        speeds.Controls.Add(numGameDown);
+        speeds.Controls.Add(new ArrowGlyph { Up = true, Theme = t, Margin = new Padding(12, 0, 3, 0) });
+        speeds.Controls.Add(numGameUp);
+        speeds.Controls.Add(unit);
+        numGameDown.Margin = numGameUp.Margin = Padding.Empty;
+        tip.SetToolTip(numGameDown, L.T("DownLimitTip"));
+        tip.SetToolTip(numGameUp, L.T("UpLimitTip"));
+        // The Limits page's unit switch applies here too: keep the same speed, shown in the new unit.
+        var gameUnit = s.LimitUnit;
+        segUnits.SelectedChanged += (_, _) =>
+        {
+            long down = RateUnits.ToBytes(numGameDown.Value, gameUnit), up = RateUnits.ToBytes(numGameUp.Value, gameUnit);
+            gameUnit = s.LimitUnit;
+            numGameDown.Value = RateUnits.FromBytes(down, gameUnit);
+            numGameUp.Value = RateUnits.FromBytes(up, gameUnit);
+            unit.Text = RateUnits.Label(gameUnit);
+        };
+        var gameCard = Card(L.T("GameMode"), "\uE7FC", Row(L.T("GameModeOn"), tglGame), gameNote, games, Row(L.T("GameOthers"), speeds));
+
+        var meteredNote = new Label { Text = L.T("MeteredNote"), AutoSize = true, MaximumSize = new Size(490, 0), Tag = "dim", Margin = new Padding(0, 0, 0, 4) };
+        bool metered = app.Headless ? false : MeteredWatcher.Read();
+        var meteredNow = new Label
+        {
+            Text = metered ? L.T("MeteredNow") : L.T("NotMeteredNow"), AutoSize = true, Tag = "keep",
+            ForeColor = metered ? t.Up : t.Dim, Margin = new Padding(0, 0, 0, 8),
+        };
+        var blocked = new ProgramListEditor(s.MeteredBlockList, t, tip, running, L.T("NoMeteredPrograms")) { RightToLeft = RightToLeft };
+        var meteredCard = Card(L.T("MeteredNetworks"), "\uEC3B", Row(L.T("MeteredOn"), tglMetered), meteredNote, meteredNow, blocked);
+
+        var driverNote = new Label { Text = L.T("AutoNeedsDriver"), AutoSize = true, MaximumSize = new Size(490, 0), Tag = "keep", ForeColor = t.Up, Margin = new Padding(0, 0, 0, 4) };
+        var needsDriver = Card(L.T("Driver"), Art.IconShield, driverNote);
+        needsDriver.Visible = !LimiterClient.DriverInstalled;
+        AddPage("\uE7FC", L.T("AutoRules"), needsDriver, gameCard, meteredCard);
+    }
+
     void UpdateDriverText()
     {
         bool ok = LimiterClient.DriverInstalled;
@@ -269,6 +330,7 @@ sealed class SettingsForm : Form
         cmbProcs.Items.Clear();
         cmbProcs.Icons.Clear();
         procPaths.Clear();
+        running.Clear();
         if (app.Headless)
         {
             // Screenshots never list the user's real programs.
@@ -276,6 +338,7 @@ sealed class SettingsForm : Form
             cmbProcs.Items.Add("Example Browser  (browser.exe)");
             cmbProcs.Icons.Add(SystemIcons.Application.ToBitmap());
             cmbProcs.SelectedIndex = 0;
+            running.Add(new(procPaths[0], "Example Browser  (browser.exe)", SystemIcons.Application.ToBitmap()));
             return;
         }
         // Apps with a window come first (what people usually want to limit), then background programs.
@@ -300,6 +363,7 @@ sealed class SettingsForm : Form
             procPaths.Add(path);
             cmbProcs.Items.Add($"{name}  ({Path.GetFileName(path)})");
             cmbProcs.Icons.Add(ProgramIcons.For(path));
+            running.Add(new(path, $"{name}  ({Path.GetFileName(path)})", ProgramIcons.For(path)!));
         }
         if (cmbProcs.Items.Count > 0) cmbProcs.SelectedIndex = 0;
     }
@@ -410,6 +474,7 @@ sealed class SettingsForm : Form
     void SyncEnabled()
     {
         tglAutoInstall.Enabled = tglAutoCheck.Checked;
+        txtPingHost.Enabled = tglPing.Checked;
         cmbKeep.Enabled = numKeep.Enabled = tglVirtual.Enabled = tglLog.Checked;
         keepCustomRow.Visible = cmbKeep.SelectedIndex == KeepOptions.Length;
         int active = s.Limits.Count(r => r.Enabled);
@@ -430,6 +495,12 @@ sealed class SettingsForm : Form
         s.KeepDays = cmbKeep.SelectedIndex >= 0 && cmbKeep.SelectedIndex < KeepOptions.Length
             ? KeepOptions[cmbKeep.SelectedIndex] : (int)numKeep.Value;
         s.LimitsEnabled = tglLimits.Checked;
+        s.GameMode = tglGame.Checked;
+        s.GameOthersDown = RateUnits.ToBytes(numGameDown.Value, s.LimitUnit);
+        s.GameOthersUp = RateUnits.ToBytes(numGameUp.Value, s.LimitUnit);
+        s.MeteredBlock = tglMetered.Checked;
+        s.Ping = tglPing.Checked;
+        s.PingHost = string.IsNullOrWhiteSpace(txtPingHost.Text) ? "1.1.1.1" : txtPingHost.Text.Trim();
         s.AutoCheckUpdates = tglAutoCheck.Checked;
         s.AutoInstallUpdates = tglAutoInstall.Checked;
         try { AppSettings.StartWithWindows = tglStartup.Checked; } catch { /* registry blocked */ }

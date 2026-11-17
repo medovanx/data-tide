@@ -12,9 +12,13 @@ public static class PacketParser
     /// For an outgoing frame the local end is the source; for an incoming one it is the destination.
     /// Returns false for anything that is not TCP or UDP over IP (ARP, ICMP, fragments without ports...).
     /// </summary>
-    public static bool TryGetLocalEnd(ReadOnlySpan<byte> frame, Direction dir, out FlowKey key)
+    public static bool TryGetLocalEnd(ReadOnlySpan<byte> frame, Direction dir, out FlowKey key) => TryGetFlow(frame, dir, out key, out _);
+
+    /// <summary>Like <see cref="TryGetLocalEnd"/>, also giving the port at the far end (53 for a DNS lookup).</summary>
+    public static bool TryGetFlow(ReadOnlySpan<byte> frame, Direction dir, out FlowKey key, out ushort remotePort)
     {
         key = default;
+        remotePort = 0;
         if (frame.Length < EthernetHeader) return false;
         int off = 12;
         ushort type = BinaryPrimitives.ReadUInt16BigEndian(frame[off..]);
@@ -50,6 +54,7 @@ public static class PacketParser
 
         if (proto is not (6 or 17) || l4.Length < 4) return false;
         ushort port = BinaryPrimitives.ReadUInt16BigEndian(dir == Direction.Upload ? l4 : l4[2..]);
+        remotePort = BinaryPrimitives.ReadUInt16BigEndian(dir == Direction.Upload ? l4[2..] : l4);
         key = new FlowKey(proto, local, port);
         return true;
     }

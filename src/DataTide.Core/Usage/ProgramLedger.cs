@@ -53,6 +53,18 @@ public sealed class ProgramLedger
                 .ToList();
     }
 
+    /// <summary>Total bytes per day and program in the range (programs keyed by display name), for trend charts.</summary>
+    public IReadOnlyDictionary<(DateOnly day, string name), long> DailyTotals(DateOnly from, DateOnly to)
+    {
+        if (to < from) (from, to) = (to, from);
+        var d = new Dictionary<(DateOnly, string), long>();
+        lock (gate)
+            foreach (var (k, v) in days)
+                if (k.day >= from && k.day <= to)
+                    d[(k.day, names.GetValueOrDefault(k.name, k.name))] = (long)(v.rx + v.tx);
+        return d;
+    }
+
     /// <summary>One program's bytes on one day.</summary>
     public long DayTotal(DateOnly day, string name)
     {
