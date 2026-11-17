@@ -5,6 +5,7 @@ sealed class ReportView : Control
 {
     ReportRenderer? renderer;
     public Theme Theme { get; set; } = Theme.Current;
+    public ReportChart Chart { get; set; }
 
     public ReportView()
     {
@@ -24,7 +25,7 @@ sealed class ReportView : Control
     public void Relayout()
     {
         if (report == null || Width <= 0) return;
-        renderer = new ReportRenderer(report, Theme, RightToLeft == RightToLeft.Yes, DeviceDpi / 96f, Width, filter);
+        renderer = new ReportRenderer(report, Theme, RightToLeft == RightToLeft.Yes, DeviceDpi / 96f, Width, filter, Chart);
         if (Height != renderer.TotalHeight) Height = renderer.TotalHeight;
         Invalidate();
     }

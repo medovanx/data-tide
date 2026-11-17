@@ -226,6 +226,8 @@ public static class L
         ["TotalUsage"] = ("Total used", "إجمالي الاستهلاك"),
         ["DailyAverage"] = ("Daily average", "المتوسط اليومي"),
         ["UsageOverTime"] = ("Usage over time", "الاستهلاك عبر الوقت"),
+        ["ChartBars"] = ("Bars", "أعمدة"),
+        ["ChartLines"] = ("Lines", "خطوط"),
         ["ByInterface"] = ("By interface", "حسب الواجهة"),
         ["Ping"] = ("Ping", "زمن الاستجابة"),
         ["PingShow"] = ("Show ping in the flyout and hover card", "اعرض زمن الاستجابة في النافذة المنبثقة وبطاقة التمرير"),

@@ -7,10 +7,10 @@ static class ReportExporter
     const float PngScale = 1.5f;
     const int PngLayoutWidth = 1000;
 
-    public static void SavePng(UsageReport report, string filterName, string path)
+    public static void SavePng(UsageReport report, string filterName, string path, ReportChart chart = ReportChart.Bars)
     {
         var t = Theme.Light;
-        var rr = new ReportRenderer(report, t, L.Ar, PngScale, (int)(PngLayoutWidth * PngScale), filterName);
+        var rr = new ReportRenderer(report, t, L.Ar, PngScale, (int)(PngLayoutWidth * PngScale), filterName, chart);
         using var bmp = new Bitmap((int)(PngLayoutWidth * PngScale), rr.TotalHeight);
         using (var g = Graphics.FromImage(bmp))
         {
@@ -20,14 +20,14 @@ static class ReportExporter
         bmp.Save(path, System.Drawing.Imaging.ImageFormat.Png);
     }
 
-    public static void SavePdf(UsageReport report, string filterName, string path)
+    public static void SavePdf(UsageReport report, string filterName, string path, ReportChart chart = ReportChart.Bars)
     {
         var t = Theme.Light;
         // A4 at about 150 dpi: 1240 x 1754 pixels per page.
         const int pageW = 1240;
         int pageH = (int)(pageW * PdfWriter.A4HeightPt / PdfWriter.A4WidthPt);
         float scale = pageW / (float)PngLayoutWidth;
-        var rr = new ReportRenderer(report, t, L.Ar, scale, pageW, filterName);
+        var rr = new ReportRenderer(report, t, L.Ar, scale, pageW, filterName, chart);
         var pages = rr.Paginate(pageH, (int)(10 * scale), (int)(30 * scale));
         var bitmaps = new List<Bitmap>();
         try

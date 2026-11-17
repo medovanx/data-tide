@@ -5,8 +5,10 @@ sealed class ReportForm : Form
 {
     readonly DataTideApp app;
     readonly Theme t = Theme.Current;
-    readonly ThemedCombo cmbRange = new() { Width = 190 }, cmbIface = new() { Width = 240 };
-    readonly IconButton btnPng = new() { Width = 130, Height = 32 }, btnPdf = new() { Width = 130, Height = 32 };
+    readonly ThemedCombo cmbRange = new() { Width = 170 }, cmbIface = new() { Width = 210 };
+    readonly IconButton btnPng = new() { Width = 120, Height = 32 }, btnPdf = new() { Width = 120, Height = 32 };
+    // Bars or lines: a two-part switch, the chosen side filled.
+    readonly IconButton btnBars = new() { Height = 32 }, btnLines = new() { Height = 32 };
     readonly Panel scroller = new() { Dock = DockStyle.Fill, AutoScroll = true };
     readonly ReportView view = new();
     readonly List<string?> ifaceIds = [];
@@ -41,6 +43,10 @@ sealed class ReportForm : Form
         btnPdf.Text = L.T("ExportPdf");
         btnPdf.Glyph = Art.IconDocument;
         btnPdf.Primary = true;
+        btnBars.Text = L.T("ChartBars");
+        btnLines.Text = L.T("ChartLines");
+        foreach (var b in new[] { btnBars, btnLines }) b.Width = Math.Max(64, TextRenderer.MeasureText(b.Text, b.Font).Width + 26);
+        SyncChart();
 
         var bar = new FlowLayoutPanel
         {
@@ -51,9 +57,11 @@ sealed class ReportForm : Form
         var lblIface = new Label { Text = L.T("Interface"), AutoSize = true, Margin = new Padding(18, 7, 8, 0) };
         var spacer = new Panel { Width = 10, Height = 1 };
         cmbRange.Margin = cmbIface.Margin = new Padding(0, 1, 0, 0);
+        btnBars.Margin = new Padding(18, 0, 0, 0);
+        btnLines.Margin = new Padding(4, 0, 0, 0);
         btnPng.Margin = new Padding(18, 0, 0, 0);
         btnPdf.Margin = new Padding(8, 0, 0, 0);
-        bar.Controls.AddRange([lblRange, cmbRange, lblIface, cmbIface, spacer, btnPng, btnPdf]);
+        bar.Controls.AddRange([lblRange, cmbRange, lblIface, cmbIface, btnBars, btnLines, spacer, btnPng, btnPdf]);
 
         view.Theme = t;
         view.RightToLeft = RightToLeft;
@@ -65,6 +73,8 @@ sealed class ReportForm : Form
 
         cmbRange.SelectedIndexChanged += (_, _) => Rebuild();
         cmbIface.SelectedIndexChanged += (_, _) => Rebuild();
+        btnBars.Click += (_, _) => SetChart(ReportChart.Bars);
+        btnLines.Click += (_, _) => SetChart(ReportChart.Lines);
         btnPng.Click += (_, _) => Export("png");
         btnPdf.Click += (_, _) => Export("pdf");
         scroller.Resize += (_, _) => { view.Width = scroller.ClientSize.Width; view.Relayout(); };
@@ -80,6 +90,24 @@ sealed class ReportForm : Form
         Native.RoundCorners(Handle, t.Dark);
         int caption = ColorTranslator.ToWin32(t.Window);
         Native.DwmSetWindowAttribute(Handle, 35, ref caption, sizeof(int)); // DWMWA_CAPTION_COLOR
+    }
+
+    void SetChart(ReportChart c)
+    {
+        if (app.S.ReportChart == c) return;
+        app.S.ReportChart = c;
+        app.S.Save();
+        SyncChart();
+        view.Relayout();
+    }
+
+    void SyncChart()
+    {
+        btnBars.Primary = app.S.ReportChart == ReportChart.Bars;
+        btnLines.Primary = !btnBars.Primary;
+        view.Chart = app.S.ReportChart;
+        btnBars.Invalidate();
+        btnLines.Invalidate();
     }
 
     string FilterName => cmbIface.SelectedIndex <= 0 ? L.T("AllInterfaces") : cmbIface.Items[cmbIface.SelectedIndex];
@@ -108,8 +136,8 @@ sealed class ReportForm : Form
         try
         {
             Cursor = Cursors.WaitCursor;
-            if (ext == "png") ReportExporter.SavePng(current, FilterName, dlg.FileName);
-            else ReportExporter.SavePdf(current, FilterName, dlg.FileName);
+            if (ext == "png") ReportExporter.SavePng(current, FilterName, dlg.FileName, app.S.ReportChart);
+            else ReportExporter.SavePdf(current, FilterName, dlg.FileName, app.S.ReportChart);
             Cursor = Cursors.Default;
             if (MessageBox.Show(this, L.F("Exported", Path.GetFileName(dlg.FileName)), Text, MessageBoxButtons.YesNo, MessageBoxIcon.Information) == DialogResult.Yes)
                 Updater.OpenPage(dlg.FileName);

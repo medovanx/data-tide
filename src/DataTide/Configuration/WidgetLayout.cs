@@ -15,6 +15,15 @@ public enum WidgetLayout
     Ping,
 }
 
+/// <summary>How the report draws usage over time.</summary>
+public enum ReportChart
+{
+    /// <summary>Stacked bars per day or month.</summary>
+    Bars,
+    /// <summary>One line per series.</summary>
+    Lines,
+}
+
 /// <summary>The pill behind the widget's text.</summary>
 public enum WidgetBackground
 {

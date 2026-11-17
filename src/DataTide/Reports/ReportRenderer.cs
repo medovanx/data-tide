@@ -4,7 +4,7 @@ using System.Drawing.Text;
 namespace DataTide.Reports;
 
 /// <summary>
-/// Lays out and draws a usage report: header, summary tiles, a stacked bar chart with one colour per interface,
+/// Lays out and draws a usage report: header, summary tiles, a chart (stacked bars or lines) with one colour per interface,
 /// a table per interface and a daily table. The same drawing is used on screen, for PNG and for PDF pages,
 /// and it is mirrored for Arabic.
 /// </summary>
@@ -16,6 +16,7 @@ sealed class ReportRenderer
     readonly float s;
     readonly int width;
     readonly string filterName;
+    readonly ReportChart chart;
     readonly Dictionary<string, Color> colors = [];
     public List<ReportBlock> Blocks { get; } = [];
 
@@ -23,9 +24,9 @@ sealed class ReportRenderer
     int Content => width - Margin * 2;
     int P(float v) => (int)Math.Round(v * s);
 
-    public ReportRenderer(UsageReport report, Theme theme, bool isRtl, float scale, int pixelWidth, string interfaceFilterName)
+    public ReportRenderer(UsageReport report, Theme theme, bool isRtl, float scale, int pixelWidth, string interfaceFilterName, ReportChart chartStyle = ReportChart.Bars)
     {
-        r = report; t = theme; rtl = isRtl; s = scale; width = pixelWidth; filterName = interfaceFilterName;
+        r = report; t = theme; rtl = isRtl; s = scale; width = pixelWidth; filterName = interfaceFilterName; chart = chartStyle;
         // Colours follow the interfaces' order in the whole report so the chart, legend and tables agree.
         for (int i = 0; i < r.Interfaces.Count; i++) colors[r.Interfaces[i].InterfaceId] = Art.Series(i, t.Dark);
         Build();
@@ -227,7 +228,10 @@ sealed class ReportRenderer
         });
     }
 
-    /// <summary>A stacked bar chart per day (or month) with a legend, one colour per series.</summary>
+    /// <summary>
+    /// Usage per day (or month) with a legend, one colour per series: stacked bars, or one line per series
+    /// (lines are not stacked, so each one reads as its own amount).
+    /// </summary>
     void Stacked(Graphics g, int y, IReadOnlyList<(string label, Color color)> series, Func<DateOnly, DateOnly, long[]> valuesFor)
     {
         var box = new RectangleF(Margin, y, Content, P(288));
@@ -236,7 +240,8 @@ sealed class ReportRenderer
 
         var buckets = Buckets();
         var totals = buckets.Select(b => valuesFor(b.from, b.to)).ToList();
-        long max = Math.Max(1, totals.Count == 0 ? 1 : totals.Max(a => a.Sum()));
+        bool lines = chart == ReportChart.Lines;
+        long max = Math.Max(1, totals.Count == 0 ? 1 : lines ? totals.Max(a => a.Length == 0 ? 0 : a.Max()) : totals.Max(a => a.Sum()));
         long step = NiceStep(max / 4.0);
         long top = Math.Max(step, (long)Math.Ceiling(max / (double)step) * step);
 
@@ -257,12 +262,13 @@ sealed class ReportRenderer
         int n = Math.Max(1, buckets.Count);
         float slot = plot.Width / n, barW = Math.Max(P(2), Math.Min(slot * 0.68f, P(46)));
         int labelEvery = Math.Max(1, (int)Math.Ceiling(n / (plot.Width / P(52))));
+        if (lines) Lines(g, plot, slot, top, series, totals);
         for (int i = 0; i < buckets.Count; i++)
         {
             int idx = rtl ? buckets.Count - 1 - i : i;
             float cx = plot.Left + slot * i + slot / 2;
             float yb = plot.Bottom;
-            for (int k = 0; k < series.Count; k++)
+            for (int k = 0; k < series.Count && !lines; k++)
             {
                 long v = totals[idx][k];
                 if (v <= 0) continue;
@@ -293,6 +299,50 @@ sealed class ReportRenderer
         {
             using var f = F(14);
             Text(g, L.T("NoData"), f, plot, t.Dim, StringAlignment.Center);
+        }
+    }
+
+    /// <summary>One line per series through the middle of each day's slot, a soft fill under it, and dots while they fit.</summary>
+    void Lines(Graphics g, RectangleF plot, float slot, long top, IReadOnlyList<(string label, Color color)> series, List<long[]> totals)
+    {
+        int n = totals.Count;
+        if (n == 0) return;
+        bool dots = slot >= P(9);
+        float r = P(3);
+        for (int k = 0; k < series.Count; k++)
+        {
+            var pts = new PointF[n];
+            for (int i = 0; i < n; i++)
+            {
+                int idx = rtl ? n - 1 - i : i;
+                pts[i] = new PointF(plot.Left + slot * i + slot / 2, plot.Bottom - (float)(plot.Height * totals[idx][k] / (double)top));
+            }
+            var c = series[k].color;
+            if (n > 1)
+            {
+                using (var area = new GraphicsPath())
+                {
+                    area.AddLines(pts);
+                    area.AddLine(pts[^1], new PointF(pts[^1].X, plot.Bottom));
+                    area.AddLine(new PointF(pts[^1].X, plot.Bottom), new PointF(pts[0].X, plot.Bottom));
+                    area.CloseFigure();
+                    using var fill = new SolidBrush(Color.FromArgb(t.Dark ? 30 : 26, c));
+                    g.FillPath(fill, area);
+                }
+                using var pen = new Pen(c, Math.Max(1.5f, 2 * s)) { LineJoin = LineJoin.Round, StartCap = LineCap.Round, EndCap = LineCap.Round };
+                g.DrawLines(pen, pts);
+            }
+            if (dots || n == 1)
+            {
+                using var b = new SolidBrush(c);
+                using var ring = new Pen(t.Surface, Math.Max(1, 1.5f * s));
+                foreach (var p in pts)
+                {
+                    var d = new RectangleF(p.X - r, p.Y - r, r * 2, r * 2);
+                    g.FillEllipse(b, d);
+                    g.DrawEllipse(ring, d);
+                }
+            }
         }
     }
 

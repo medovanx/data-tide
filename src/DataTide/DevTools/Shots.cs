@@ -120,16 +120,27 @@ static class Shots
             ReportExporter.SavePng(report, L.T("AllInterfaces"), Path.Combine(dir, $"report-{lang}.png"));
             var (wf, wt) = UsageReport.Resolve(ReportRange.Last7Days, today);
             DarkReport(UsageReport.Build(ledger, wf, wt, programs: programLog), Path.Combine(dir, $"report-week-{lang}-dark.png"));
+            DarkReport(UsageReport.Build(ledger, from, to, programs: programLog), Path.Combine(dir, $"report-lines-{lang}-dark.png"), ReportChart.Lines);
+            foreach (var style in new[] { ReportChart.Bars, ReportChart.Lines })
+            {
+                app.S.ReportChart = style;
+                var rf = new ReportForm(app) { StartPosition = FormStartPosition.Manual, Location = new Point(-4000, -4000) };
+                rf.Show();
+                Application.DoEvents();
+                SaveClient(rf, Path.Combine(dir, $"report-window-{style.ToString().ToLowerInvariant()}-{lang}.png"));
+                rf.Close();
+            }
+            app.S.ReportChart = ReportChart.Bars;
             if (lang == "en") ReportExporter.SavePdf(report, L.T("AllInterfaces"), Path.Combine(dir, "report-en.pdf"));
             if (lang == "ar") ReportExporter.SavePdf(report, L.T("AllInterfaces"), Path.Combine(dir, "report-ar.pdf"));
         }
         return 0;
     }
 
-    static void DarkReport(UsageReport r, string path)
+    static void DarkReport(UsageReport r, string path, ReportChart chart = ReportChart.Bars)
     {
         var t = new Theme(true);
-        var rr = new ReportRenderer(r, t, L.Ar, 1.25f, 1250, L.T("AllInterfaces"));
+        var rr = new ReportRenderer(r, t, L.Ar, 1.25f, 1250, L.T("AllInterfaces"), chart);
         using var bmp = new Bitmap(1250, rr.TotalHeight);
         using (var g = Graphics.FromImage(bmp)) { g.Clear(t.Window); rr.DrawAll(g); }
         bmp.Save(path, ImageFormat.Png);

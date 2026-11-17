@@ -3,6 +3,11 @@
 All notable changes to Data Tide are listed here.
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and versions follow [Semantic Versioning](https://semver.org/).
 
+## [1.6.0] - 2026-11-17
+
+### Added
+- The usage report can draw its charts as lines instead of stacked bars: switch with Bars and Lines in the report window. Each line shows its own amount (lines are not stacked), with dots for each day while they fit. The choice is remembered and also used for saved PNGs and PDFs.
+
 ## [1.5.2] - 2026-11-17
 
 ### Fixed
@@ -137,6 +142,7 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and 
 - A small amber dot on the widget replaces the outline while limits are active.
 - One-click driver install: downloads the official Windows Packet Filter installer from NT Kernel's GitHub release, checks its SHA-256 and runs it.
 
+[1.6.0]: https://github.com/medovanx/data-tide/releases/tag/v1.6.0
 [1.5.2]: https://github.com/medovanx/data-tide/releases/tag/v1.5.2
 [1.5.1]: https://github.com/medovanx/data-tide/releases/tag/v1.5.1
 [1.5.0]: https://github.com/medovanx/data-tide/releases/tag/v1.5.0

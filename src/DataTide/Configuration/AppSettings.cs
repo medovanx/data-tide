@@ -21,6 +21,8 @@ public sealed class AppSettings
     public int WidgetOffset { get; set; }
     public WidgetLayout WidgetLayout { get; set; } = WidgetLayout.Speeds;
     public WidgetBackground WidgetBackground { get; set; } = WidgetBackground.Sea;
+    /// <summary>Bars or lines for the report's charts.</summary>
+    public ReportChart ReportChart { get; set; } = ReportChart.Bars;
 
     /// <summary>Log usage of every interface; logging never sends anything anywhere.</summary>
     public bool LogUsage { get; set; } = true;
