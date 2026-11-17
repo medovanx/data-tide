@@ -62,6 +62,8 @@ sealed class ReportForm : Form
         btnPng.Margin = new Padding(18, 0, 0, 0);
         btnPdf.Margin = new Padding(8, 0, 0, 0);
         bar.Controls.AddRange([lblRange, cmbRange, lblIface, cmbIface, btnBars, btnLines, spacer, btnPng, btnPdf]);
+        // A right-to-left flow does not mirror margins: flip them so every gap stays on the side it separates.
+        if (L.Ar) foreach (Control c in bar.Controls) c.Margin = new Padding(c.Margin.Right, c.Margin.Top, c.Margin.Left, c.Margin.Bottom);
 
         view.Theme = t;
         view.RightToLeft = RightToLeft;
