@@ -189,8 +189,28 @@ sealed class DataTideApp : ApplicationContext
     void UpdateWidget()
     {
         bool limited = Plan().Active && LimiterClient.HelperRunning;
-        widget.SetContent(Rate(Up), Rate(Down), L.Ar, limited);
+        widget.SetContent(WidgetNow(), WidgetLayoutNow, S.WidgetBackground, L.Ar, limited);
     }
+
+    /// <summary>The ping layouts need ping; with it off they fall back to plain speeds.</summary>
+    public WidgetLayout WidgetLayoutNow =>
+        !S.Ping && S.WidgetLayout is WidgetLayout.Ping or WidgetLayout.SpeedsPing ? WidgetLayout.Speeds : S.WidgetLayout;
+
+    /// <summary>Everything the widget can show, formatted for it.</summary>
+    public WidgetContent WidgetNow()
+    {
+        var (last, _, jitter, loss, n) = Ping.Stats.Summary();
+        string detail = n == 0 ? "" : $"{L.F("PingJitter", $"{jitter:0}")}  {L.F("PingLoss", L.Ltr($"{loss:0}%"))}";
+        return new WidgetContent(Rate(Up), Rate(Down),
+            ByteFormat.Size(TodayTotal.rx + TodayTotal.tx), ByteFormat.Size(MonthTotal.rx + MonthTotal.tx),
+            last is double ms ? $"{ms:0}" : null, detail, PingQuality(last, loss));
+    }
+
+    /// <summary>Green for a good ping, amber for so-so or any loss, red for bad, heavy loss or no reply.</summary>
+    public static Color PingQuality(double? last, double loss) =>
+        last == null || loss >= 10 || last >= 150 ? Color.FromArgb(232, 72, 85)
+        : last >= 80 || loss > 0 ? Art.UpGlow
+        : Color.FromArgb(52, 199, 120);
 
     // ---------- windows ----------
 
@@ -310,11 +330,7 @@ sealed class DataTideApp : ApplicationContext
         string ms(double v) => L.Ltr($"{v:0} ms");
         string head = last is double l ? L.F("PingLine", ms(l)) : L.F("PingLine", L.T("PingNoReply"));
         string text = $"{head}   {L.F("PingJitter", ms(jitter))}   {L.F("PingLoss", L.Ltr($"{loss:0}%"))}";
-        double v = last ?? 999;
-        Color q = last == null || loss >= 10 || v >= 150 ? Color.FromArgb(232, 72, 85)
-                : v >= 80 || loss > 0 ? Art.UpGlow
-                : Color.FromArgb(52, 199, 120);
-        return (text, q);
+        return (text, PingQuality(last, loss));
     }
 
     // ---------- limits ----------

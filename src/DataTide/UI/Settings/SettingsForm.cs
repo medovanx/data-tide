@@ -13,7 +13,11 @@ sealed class SettingsForm : Form
     readonly ToolTip tip = new();
 
     // General
-    readonly ThemedCombo cmbLang = Combo(), cmbSide = Combo(), cmbUnits = Combo();
+    readonly ThemedCombo cmbLang = Combo(), cmbSide = Combo(), cmbUnits = Combo(), cmbLayout = Combo(), cmbBack = Combo();
+    /// <summary>The widget as it will look with the chosen layout and background, on a taskbar-coloured strip.</summary>
+    readonly PictureBox widgetPreview = new() { Width = 494, Height = 64, SizeMode = PictureBoxSizeMode.CenterImage, Margin = new Padding(0, 4, 0, 6) };
+    static readonly WidgetLayout[] Layouts = [WidgetLayout.Speeds, WidgetLayout.SpeedsPing, WidgetLayout.OneLine, WidgetLayout.Totals, WidgetLayout.Ping];
+    static readonly WidgetBackground[] Backgrounds = [WidgetBackground.Sea, WidgetBackground.Accent, WidgetBackground.None];
     readonly ThemedNumber numOffset = Num(-2000, 2000);
     readonly ToggleSwitch tglStartup = new();
     // Network
@@ -158,12 +162,48 @@ sealed class SettingsForm : Form
         cmbUnits.Items.AddRange([L.T("UnitsBytes"), L.T("UnitsBits")]);
         cmbUnits.SelectedIndex = s.ShowBits ? 1 : 0;
         tglStartup.Checked = AppSettings.StartWithWindows;
+        cmbLayout.Items.AddRange([L.T("LayoutSpeeds"), L.T("LayoutSpeedsPing"), L.T("LayoutOneLine"), L.T("LayoutTotals"), L.T("LayoutPing")]);
+        cmbLayout.SelectedIndex = Math.Max(0, Array.IndexOf(Layouts, s.WidgetLayout));
+        cmbBack.Items.AddRange([L.T("BackSea"), L.T("BackAccent"), L.T("BackNone")]);
+        cmbBack.SelectedIndex = Math.Max(0, Array.IndexOf(Backgrounds, s.WidgetBackground));
+        var layoutNote = new Label { Text = L.T("LayoutPingNote"), AutoSize = true, MaximumSize = new Size(490, 0), Tag = "dim", Margin = new Padding(0, 0, 0, 4) };
+        cmbLayout.SelectedIndexChanged += (_, _) => RenderWidgetPreview();
+        cmbBack.SelectedIndexChanged += (_, _) => RenderWidgetPreview();
         AddPage(Art.IconGeneral, L.T("General"), Card(L.T("General"), Art.IconGeneral,
             Row(L.T("Language"), cmbLang),
             Row(L.T("Units"), cmbUnits),
+            Row(L.T("StartWithWindows"), tglStartup)),
+            Card(L.T("Widget"), "\uE7F4",
+            widgetPreview,
+            Row(L.T("WidgetShows"), cmbLayout),
+            layoutNote,
+            Row(L.T("WidgetBackground"), cmbBack),
             Row(L.T("WidgetPosition"), cmbSide),
-            Row(L.T("WidgetOffset"), numOffset),
-            Row(L.T("StartWithWindows"), tglStartup)));
+            Row(L.T("WidgetOffset"), numOffset)));
+        RenderWidgetPreview();
+    }
+
+    void RenderWidgetPreview()
+    {
+        var layout = Layouts[Math.Max(0, cmbLayout.SelectedIndex)];
+        var back = Backgrounds[Math.Max(0, cmbBack.SelectedIndex)];
+        bool dark = Native.SystemDark();
+        float sc = DeviceDpi / 96f;
+        int h = (int)(48 * sc);
+        // Live numbers, or the demo ones in screenshots.
+        var c = app.WidgetNow();
+        if (c.PingMs == null && layout is WidgetLayout.Ping or WidgetLayout.SpeedsPing) c = c with { PingMs = "18", PingDetail = $"{L.F("PingJitter", "2")}  {L.F("PingLoss", L.Ltr("0%"))}", PingQuality = DataTideApp.PingQuality(18, 0) };
+        using var w = TaskbarWidget.Paint(c, layout, back, false, L.Ar, false, dark, sc, h);
+        var strip = new Bitmap(Math.Max(widgetPreview.Width, w.Width + (int)(40 * sc)), h);
+        using (var g = Graphics.FromImage(strip))
+        {
+            g.Clear(dark ? Color.FromArgb(32, 32, 32) : Color.FromArgb(238, 240, 243));
+            g.DrawImage(w, (strip.Width - w.Width) / 2, 0);
+        }
+        widgetPreview.Height = h;
+        var old = widgetPreview.Image;
+        widgetPreview.Image = strip;
+        old?.Dispose();
     }
 
     void BuildNetwork()
@@ -488,6 +528,8 @@ sealed class SettingsForm : Form
         s.Language = cmbLang.SelectedIndex == 1 ? "ar" : "en";
         s.WidgetSide = cmbSide.SelectedIndex == 1 ? "Left" : "Right";
         s.WidgetOffset = (int)numOffset.Value;
+        s.WidgetLayout = Layouts[Math.Max(0, cmbLayout.SelectedIndex)];
+        s.WidgetBackground = Backgrounds[Math.Max(0, cmbBack.SelectedIndex)];
         s.ShowBits = cmbUnits.SelectedIndex == 1;
         s.InterfaceId = ifaceIds[Math.Max(0, cmbIface.SelectedIndex)];
         s.LogUsage = tglLog.Checked;

@@ -3,6 +3,11 @@
 All notable changes to Data Tide are listed here.
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and versions follow [Semantic Versioning](https://semver.org/).
 
+## [1.5.0] - 2026-11-17
+
+### Added
+- Widget layouts (Settings, General, Taskbar widget): upload and download, speeds and ping, speeds on one line, today and this month, or ping only. Backgrounds: Data Tide blue, the Windows accent colour, or none (the pill then only shows on hover). A live preview shows the choice before you save.
+
 ## [1.4.1] - 2026-11-17
 
 ### Changed
@@ -122,6 +127,7 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and 
 - A small amber dot on the widget replaces the outline while limits are active.
 - One-click driver install: downloads the official Windows Packet Filter installer from NT Kernel's GitHub release, checks its SHA-256 and runs it.
 
+[1.5.0]: https://github.com/medovanx/data-tide/releases/tag/v1.5.0
 [1.4.1]: https://github.com/medovanx/data-tide/releases/tag/v1.4.1
 [1.4.0]: https://github.com/medovanx/data-tide/releases/tag/v1.4.0
 [1.3.5]: https://github.com/medovanx/data-tide/releases/tag/v1.3.5

@@ -28,6 +28,7 @@ as PNG or PDF, and can cap the download and upload speed of any program. English
 ## Features
 
 - **Lives in the taskbar.** Upload over download, embedded right next to the notification area. It takes the nearest free spot, so it never covers other taskbar tools such as TrafficMonitor or Salaty Reminder, hides with the taskbar in fullscreen apps and comes back after Explorer restarts.
+- **Choose what the widget shows.** Upload and download, speeds with ping, speeds on one line, today and this month, or ping only, on Data Tide blue, your Windows accent colour or no background. Settings shows a live preview.
 - **Pick the interface.** Auto follows the connection Windows uses to reach the internet (Wi-Fi, Ethernet, a VPN...) and switches by itself, or pin any adapter. Click the interface at the top of the flyout, or right-click the widget, to switch quickly.
 - **Monthly usage at a glance.** Rest the mouse on the widget to see today's and this month's data, split into download and upload.
 - **Traffic flyout.** Click the widget for big live speeds, a one-minute graph, this month's total and how much each interface used today.

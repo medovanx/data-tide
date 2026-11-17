@@ -19,6 +19,8 @@ public sealed class AppSettings
     public string WidgetSide { get; set; } = "Right";
     /// <summary>Extra shift in pixels (at 100% scale), positive = towards the centre.</summary>
     public int WidgetOffset { get; set; }
+    public WidgetLayout WidgetLayout { get; set; } = WidgetLayout.Speeds;
+    public WidgetBackground WidgetBackground { get; set; } = WidgetBackground.Sea;
 
     /// <summary>Log usage of every interface; logging never sends anything anywhere.</summary>
     public bool LogUsage { get; set; } = true;

@@ -25,6 +25,17 @@ static class Shots
 
             WidgetStrip(Path.Combine(dir, $"widget-{lang}.png"), app.Rate(app.Up), app.Rate(app.Down), lang == "ar");
             WidgetStrip(Path.Combine(dir, $"widget-limited-{lang}.png"), app.Rate(app.Up), app.Rate(app.Down), lang == "ar", limited: true);
+            app.RefreshTotals();
+            foreach (var look in Enum.GetValues<WidgetLayout>())
+                foreach (var back in Enum.GetValues<WidgetBackground>())
+                    foreach (var dk in new[] { true, false })
+                    {
+                        if (back != WidgetBackground.Sea && look != WidgetLayout.Speeds) continue;
+                        using var wb = TaskbarWidget.Paint(app.WidgetNow(), look, back, false, lang == "ar", false, dk, 1.5f, 72);
+                        using var strip = new Bitmap(wb.Width + 60, 72);
+                        using (var g = Graphics.FromImage(strip)) { g.Clear(dk ? Color.FromArgb(28, 28, 28) : Color.FromArgb(238, 240, 243)); g.DrawImage(wb, 30, 0); }
+                        strip.Save(Path.Combine(dir, $"widget-{look}-{back}-{lang}-{(dk ? "dark" : "light")}.png"), ImageFormat.Png);
+                    }
             WidgetStrip(Path.Combine(dir, $"widget-updating-{lang}.png"), app.Rate(app.Up), app.Rate(app.Down), lang == "ar", updating: true, fraction: 0.42);
             WidgetStrip(Path.Combine(dir, $"widget-checking-{lang}.png"), app.Rate(app.Up), app.Rate(app.Down), lang == "ar", updating: true);
             app.RefreshTotals();

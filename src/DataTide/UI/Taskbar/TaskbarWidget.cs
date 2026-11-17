@@ -22,7 +22,9 @@ sealed class TaskbarWidget : NativeWindow
     public event Action? RightClicked;
 
     IntPtr tray;
-    string up = "0 B/s", down = "0 B/s";
+    WidgetContent content = WidgetContent.Empty;
+    WidgetLayout layout = WidgetLayout.Speeds;
+    WidgetBackground background = WidgetBackground.Sea;
     bool hover, rtl, limited;
     Size size;
     Point lastPos = new(int.MinValue, 0);
@@ -72,11 +74,11 @@ sealed class TaskbarWidget : NativeWindow
         Place();
     }
 
-    public void SetContent(string upText, string downText, bool isRtl, bool isLimited)
+    public void SetContent(WidgetContent c, WidgetLayout look, WidgetBackground back, bool isRtl, bool isLimited)
     {
-        if (upText == up && downText == down && isRtl == rtl && isLimited == limited) return;
-        bool relayout = isRtl != rtl;
-        up = upText; down = downText; rtl = isRtl; limited = isLimited;
+        if (c == content && look == layout && back == background && isRtl == rtl && isLimited == limited) return;
+        bool relayout = isRtl != rtl || look != layout;
+        content = c; layout = look; background = back; rtl = isRtl; limited = isLimited;
         if (!Alive) return;
         var before = size;
         Render();
@@ -238,7 +240,7 @@ sealed class TaskbarWidget : NativeWindow
     void Render()
     {
         if (!GetWindowRect(tray, out var tr)) return;
-        using var bmp = Paint(up, down, hover, rtl, limited, SystemDark(), Scale, tr.Height, updating, updateFraction, updatePhase);
+        using var bmp = Paint(content, layout, background, hover, rtl, limited, SystemDark(), Scale, tr.Height, updating, updateFraction, updatePhase);
         size = bmp.Size;
         var screen = GetDC(IntPtr.Zero);
         var mem = CreateCompatibleDC(screen);
@@ -260,93 +262,193 @@ sealed class TaskbarWidget : NativeWindow
         }
     }
 
-    /// <summary>
-    /// Draws the widget: two rows, upload (amber arrow) over download (cyan arrow). The width is fixed by the
-    /// widest possible text, so it never jitters as speeds change.
-    /// </summary>
+    /// <summary>The Windows accent colour (Start and the taskbar use it), or Windows blue when it can't be read.</summary>
+    public static Color AccentColor()
+    {
+        try
+        {
+            using var k = Microsoft.Win32.Registry.CurrentUser.OpenSubKey(@"Software\Microsoft\Windows\DWM");
+            if (k?.GetValue("AccentColor") is int abgr) return Color.FromArgb(abgr & 0xFF, (abgr >> 8) & 0xFF, (abgr >> 16) & 0xFF);
+        }
+        catch { }
+        return Color.FromArgb(0, 120, 212);
+    }
+
+    /// <summary>The classic widget (speeds on the sea-blue pill), for screenshots.</summary>
     public static Bitmap Paint(string up, string down, bool hover, bool rtl, bool limited, bool dark, float s, int h,
+        bool updating = false, double? updateFraction = null, float updatePhase = 0.4f) =>
+        Paint(WidgetContent.Empty with { Up = up, Down = down }, WidgetLayout.Speeds, WidgetBackground.Sea, hover, rtl, limited, dark, s, h, updating, updateFraction, updatePhase);
+
+    /// <summary>
+    /// Draws the widget in any layout. Widths come from the widest text each layout can show, never from the
+    /// current values, so the widget doesn't jitter as numbers change. Everything is mirrored for Arabic.
+    /// </summary>
+    public static Bitmap Paint(WidgetContent c, WidgetLayout layout, WidgetBackground back, bool hover, bool rtl, bool limited, bool dark, float s, int h,
         bool updating = false, double? updateFraction = null, float updatePhase = 0.4f)
     {
         using var font = new Font("Segoe UI Semibold", 13.5f * s, GraphicsUnit.Pixel);
-        float widest;
-        using (var probe = new Bitmap(1, 1))
-        using (var pg = Graphics.FromImage(probe))
-        {
-            pg.TextRenderingHint = TextRenderingHint.AntiAliasGridFit;
-            widest = new[] { "888.8 KB/s", "888.8 Mb/s", up, down }.Max(t => pg.MeasureString(t, font).Width);
-        }
+        using var small = new Font("Segoe UI", 10.5f * s, GraphicsUnit.Pixel);
+        using var probe = new Bitmap(1, 1);
+        using var pg = Graphics.FromImage(probe);
+        pg.TextRenderingHint = TextRenderingHint.AntiAliasGridFit;
+        float Wd(Font f, params string[] t) => t.Max(x => pg.MeasureString(x, f).Width);
+
         int pad = (int)(9 * s), arrow = (int)(11 * s), arrowGap = (int)(6 * s);
-        int textW = (int)Math.Ceiling(widest);
-        int w = pad + arrow + arrowGap + textW + pad;
+        int speedW = (int)Math.Ceiling(Wd(font, "888.8 KB/s", "888.8 Mb/s", c.Up, c.Down));
+        int pingW = (int)Math.Ceiling(Wd(font, "888")) + (int)(4 * s);
+        int w = layout switch
+        {
+            WidgetLayout.SpeedsPing => pad + arrow + arrowGap + speedW + (int)(12 * s) + pingW + pad,
+            WidgetLayout.OneLine => pad + (arrow + (int)(5 * s) + speedW) * 2 + (int)(12 * s) + pad,
+            WidgetLayout.Totals => pad + (int)Math.Ceiling(Wd(small, L.T("Today"), L.T("ThisMonth"))) + (int)(10 * s)
+                                   + (int)Math.Ceiling(Wd(font, "888.8 GB", c.Today, c.Month)) + pad,
+            WidgetLayout.Ping => pad + (int)Math.Ceiling(Math.Max(Wd(font, "8888 ms") + 12 * s, Wd(small, c.PingDetail, L.F("PingJitter", "88") + "  " + L.F("PingLoss", "88%")))) + pad,
+            _ => pad + arrow + arrowGap + speedW + pad,
+        };
+        int X(float x, float width) => (int)(rtl ? w - x - width : x);
 
         var bmp = new Bitmap(w, h, PixelFormat.Format32bppArgb);
-        using (var g = Graphics.FromImage(bmp))
-        {
-            g.SmoothingMode = SmoothingMode.AntiAlias;
-            g.TextRenderingHint = TextRenderingHint.AntiAliasGridFit; // grayscale AA: correct on per-pixel alpha
-            g.Clear(Color.FromArgb(1, 0, 0, 0)); // alpha 1 keeps the whole box clickable
+        using var g = Graphics.FromImage(bmp);
+        g.SmoothingMode = SmoothingMode.AntiAlias;
+        g.TextRenderingHint = TextRenderingHint.AntiAliasGridFit; // grayscale AA: correct on per-pixel alpha
+        g.Clear(Color.FromArgb(1, 0, 0, 0)); // alpha 1 keeps the whole box clickable
 
-            // Soft sea-blue pill like Salaty Reminder's, brighter on hover; an amber dot while limits are active.
+        var box = new RectangleF(1, 4 * s, w - 2, h - 8 * s);
+        if (back != WidgetBackground.None || hover)
+        {
+            // Soft pill, brighter on hover. With no background it only appears on hover, so the widget still answers the mouse.
+            Color c1 = back == WidgetBackground.Accent ? AccentColor() : Art.SeaLight;
+            Color c2 = back == WidgetBackground.Accent ? ControlPaint.Dark(c1, 0.3f) : Art.SeaDark;
+            int a1 = hover ? (dark ? 95 : 70) : (dark ? 55 : 40);
+            int a2 = hover ? (dark ? 70 : 50) : (dark ? 30 : 22);
+            if (back == WidgetBackground.None) { a1 = dark ? 40 : 30; a2 = dark ? 26 : 18; }
+            using var path = Art.RoundRect(box, 6 * s);
+            using var bg = new LinearGradientBrush(box, Color.FromArgb(a1, c1), Color.FromArgb(a2, c2), LinearGradientMode.ForwardDiagonal);
+            g.FillPath(bg, path);
+            if (back != WidgetBackground.None)
             {
-                var box = new RectangleF(1, 4 * s, w - 2, h - 8 * s);
-                int a1 = hover ? (dark ? 95 : 70) : (dark ? 55 : 40);
-                int a2 = hover ? (dark ? 70 : 50) : (dark ? 30 : 22);
-                using var path = Art.RoundRect(box, 6 * s);
-                using var bg = new LinearGradientBrush(box, Color.FromArgb(a1, Art.SeaLight), Color.FromArgb(a2, Art.SeaDark), LinearGradientMode.ForwardDiagonal);
-                g.FillPath(bg, path);
                 using var edge = new Pen(Color.FromArgb(dark ? 40 : 30, dark ? Color.White : Art.SeaDark), Math.Max(1f, s));
                 g.DrawPath(edge, path);
-                if (limited)
-                {
-                    // Speed limits active: a small amber dot in the far top corner, like a notification badge.
-                    float d = 7 * s;
-                    float dx = rtl ? box.Left + 3 * s : box.Right - d - 3 * s, dy = box.Top + 3 * s;
-                    using var ring = new SolidBrush(dark ? Color.FromArgb(32, 32, 32) : Color.FromArgb(240, 240, 240));
-                    g.FillEllipse(ring, dx - s, dy - s, d + 2 * s, d + 2 * s);
-                    using var dot = new SolidBrush(Art.UpGlow);
-                    g.FillEllipse(dot, dx, dy, d, d);
-                }
-                if (updating)
-                {
-                    // Updating: a thin accent line just inside the bottom edge, filling as it downloads.
-                    float lh = 2f * s, inset = 7 * s;
-                    var track = new RectangleF(box.Left + inset, box.Bottom - lh - 1.5f * s, box.Width - inset * 2, lh);
-                    using (var tb = new SolidBrush(Color.FromArgb(dark ? 50 : 40, dark ? Color.White : Art.SeaDark)))
-                    using (var tp = Art.RoundRect(track, lh / 2)) g.FillPath(tb, tp);
-                    RectangleF fill;
-                    if (updateFraction is { } f) fill = new RectangleF(track.X, track.Y, Math.Max(lh, track.Width * (float)Math.Clamp(f, 0, 1)), lh);
-                    else
-                    {
-                        float seg = track.Width / 3, t = (1 - MathF.Cos(updatePhase * MathF.PI)) / 2;
-                        float x = track.X - seg + (track.Width + seg) * t;
-                        float l = Math.Max(track.X, x), r = Math.Min(track.Right, x + seg);
-                        fill = new RectangleF(l, track.Y, Math.Max(0, r - l), lh);
-                    }
-                    if (rtl) fill.X = track.Right - (fill.X - track.X) - fill.Width;
-                    if (fill.Width >= 1)
-                    {
-                        using var fb = new SolidBrush(dark ? Art.DownGlow : Color.FromArgb(0, 118, 180));
-                        using var fp = Art.RoundRect(fill, lh / 2);
-                        g.FillPath(fb, fp);
-                    }
-                }
             }
+        }
+        if (limited)
+        {
+            // Speed limits active: a small amber dot in the far top corner, like a notification badge.
+            float d = 7 * s;
+            float dx = rtl ? box.Left + 3 * s : box.Right - d - 3 * s, dy = box.Top + 3 * s;
+            using var ring = new SolidBrush(dark ? Color.FromArgb(32, 32, 32) : Color.FromArgb(240, 240, 240));
+            g.FillEllipse(ring, dx - s, dy - s, d + 2 * s, d + 2 * s);
+            using var dot = new SolidBrush(Art.UpGlow);
+            g.FillEllipse(dot, dx, dy, d, d);
+        }
 
-            Color upC = dark ? Art.UpGlow : Color.FromArgb(200, 110, 0);
-            Color downC = dark ? Art.DownGlow : Color.FromArgb(0, 118, 180);
-            Color fg = dark ? Color.White : Color.FromArgb(20, 20, 20);
-            float lineH = font.GetHeight(g);
-            float total = lineH * 2 - 2 * s;
-            float y1 = (h - total) / 2, y2 = y1 + lineH - 2 * s;
-            int arrowX = rtl ? w - pad - arrow : pad;
-            int textX = rtl ? pad : pad + arrow + arrowGap;
-            Art.Arrow(g, new RectangleF(arrowX, y1 + (lineH - arrow) / 2, arrow, arrow), true, upC);
-            Art.Arrow(g, new RectangleF(arrowX, y2 + (lineH - arrow) / 2, arrow, arrow), false, downC);
-            using var sf = new StringFormat { Alignment = rtl ? StringAlignment.Near : StringAlignment.Far, FormatFlags = StringFormatFlags.NoWrap };
-            using var b = new SolidBrush(fg);
-            // Speeds are numbers and Latin units: right-aligned in both languages so the digits line up.
-            g.DrawString(up, font, b, new RectangleF(textX, y1, textW, lineH), sf);
-            g.DrawString(down, font, b, new RectangleF(textX, y2, textW, lineH), sf);
+        Color upC = dark ? Art.UpGlow : Color.FromArgb(200, 110, 0);
+        Color downC = dark ? Art.DownGlow : Color.FromArgb(0, 118, 180);
+        Color fg = dark ? Color.White : Color.FromArgb(20, 20, 20);
+        Color dim = dark ? Color.FromArgb(175, 255, 255, 255) : Color.FromArgb(150, 20, 20, 20);
+        using var b = new SolidBrush(fg);
+        using var bDim = new SolidBrush(dim);
+        float lineH = font.GetHeight(g);
+        float total = lineH * 2 - 2 * s;
+        float y1 = (h - total) / 2, y2 = y1 + lineH - 2 * s;
+        using var farFmt = new StringFormat { Alignment = rtl ? StringAlignment.Near : StringAlignment.Far, FormatFlags = StringFormatFlags.NoWrap };
+        using var nearFmt = new StringFormat { Alignment = StringAlignment.Near, FormatFlags = StringFormatFlags.NoWrap };
+        using var centerFmt = new StringFormat { Alignment = StringAlignment.Center, FormatFlags = StringFormatFlags.NoWrap };
+
+        // Speeds stacked: arrows on the near side, numbers right-aligned so the digits line up (both languages).
+        void Stack(float x0)
+        {
+            Art.Arrow(g, new RectangleF(X(x0, arrow), y1 + (lineH - arrow) / 2, arrow, arrow), true, upC);
+            Art.Arrow(g, new RectangleF(X(x0, arrow), y2 + (lineH - arrow) / 2, arrow, arrow), false, downC);
+            g.DrawString(c.Up, font, b, new RectangleF(X(x0 + arrow + arrowGap, speedW), y1, speedW, lineH), farFmt);
+            g.DrawString(c.Down, font, b, new RectangleF(X(x0 + arrow + arrowGap, speedW), y2, speedW, lineH), farFmt);
+        }
+        void Dot(float x, float y, float d)
+        {
+            using var q = new SolidBrush(c.PingMs == null ? Color.FromArgb(232, 72, 85) : c.PingQuality);
+            g.FillEllipse(q, x, y, d, d);
+        }
+
+        switch (layout)
+        {
+            case WidgetLayout.SpeedsPing:
+            {
+                Stack(pad);
+                float x = pad + arrow + arrowGap + speedW + 12 * s;
+                using (var sep = new Pen(Color.FromArgb(dark ? 50 : 40, fg), Math.Max(1, s)))
+                {
+                    float sx = X(x - 6 * s, 0);
+                    g.DrawLine(sep, sx, 12 * s, sx, h - 12 * s);
+                }
+                g.DrawString(c.PingMs ?? "...", font, b, new RectangleF(X(x, pingW), y1, pingW, lineH), centerFmt);
+                float d = 6 * s;
+                var ms = g.MeasureString("ms", small);
+                float mx = x + (pingW - (ms.Width + d + 3 * s)) / 2;
+                Dot(X(mx, d), y2 + (lineH - d) / 2 + s, d);
+                g.DrawString("ms", small, bDim, X(mx + d + 3 * s, ms.Width), y2 + (lineH - ms.Height) / 2 + s);
+                break;
+            }
+            case WidgetLayout.OneLine:
+            {
+                float y = (h - lineH) / 2, x = pad, gap = 5 * s;
+                Art.Arrow(g, new RectangleF(X(x, arrow), y + (lineH - arrow) / 2, arrow, arrow), false, downC);
+                g.DrawString(c.Down, font, b, new RectangleF(X(x + arrow + gap, speedW), y, speedW, lineH), rtl ? farFmt : nearFmt);
+                x += arrow + gap + speedW + 12 * s;
+                Art.Arrow(g, new RectangleF(X(x, arrow), y + (lineH - arrow) / 2, arrow, arrow), true, upC);
+                g.DrawString(c.Up, font, b, new RectangleF(X(x + arrow + gap, speedW), y, speedW, lineH), rtl ? farFmt : nearFmt);
+                break;
+            }
+            case WidgetLayout.Totals:
+            {
+                float labelW = Wd(small, L.T("Today"), L.T("ThisMonth")), valueW = w - pad * 2 - labelW - 10 * s;
+                float ly = (lineH - small.GetHeight(g)) / 2 + s;
+                using var labelFmt = new StringFormat { Alignment = StringAlignment.Near, FormatFlags = StringFormatFlags.NoWrap | (rtl ? StringFormatFlags.DirectionRightToLeft : 0) };
+                g.DrawString(L.T("Today"), small, bDim, new RectangleF(X(pad, labelW), y1 + ly, labelW, lineH), labelFmt);
+                g.DrawString(L.T("ThisMonth"), small, bDim, new RectangleF(X(pad, labelW), y2 + ly, labelW, lineH), labelFmt);
+                g.DrawString(c.Today, font, b, new RectangleF(X(pad + labelW + 10 * s, valueW), y1, valueW, lineH), farFmt);
+                g.DrawString(c.Month, font, b, new RectangleF(X(pad + labelW + 10 * s, valueW), y2, valueW, lineH), farFmt);
+                break;
+            }
+            case WidgetLayout.Ping:
+            {
+                float d = 7 * s, inner = w - pad * 2;
+                string v = c.PingMs == null ? L.T("PingNoReply") : L.Ltr(c.PingMs + " ms"); // "18 ms" stays in order in Arabic
+                float vw = g.MeasureString(v, font).Width;
+                Dot(X(pad, d), y1 + (lineH - d) / 2, d);
+                g.DrawString(v, font, b, new RectangleF(X(pad + d + 5 * s, inner - d - 5 * s), y1, inner - d - 5 * s, lineH),
+                    new StringFormat { Alignment = StringAlignment.Near, FormatFlags = StringFormatFlags.NoWrap | (rtl ? StringFormatFlags.DirectionRightToLeft : 0) });
+                g.DrawString(c.PingDetail, small, bDim, new RectangleF(X(pad, inner), y2 + 2 * s, inner, lineH),
+                    new StringFormat { Alignment = StringAlignment.Near, FormatFlags = StringFormatFlags.NoWrap | (rtl ? StringFormatFlags.DirectionRightToLeft : 0) });
+                break;
+            }
+            default:
+                Stack(pad);
+                break;
+        }
+
+        if (updating)
+        {
+            // Updating: a thin accent line just inside the bottom edge, filling as it downloads.
+            float lh = 2f * s, inset = 7 * s;
+            var track = new RectangleF(box.Left + inset, box.Bottom - lh - 1.5f * s, box.Width - inset * 2, lh);
+            using (var tb = new SolidBrush(Color.FromArgb(dark ? 50 : 40, dark ? Color.White : Art.SeaDark)))
+            using (var tp = Art.RoundRect(track, lh / 2)) g.FillPath(tb, tp);
+            RectangleF fill;
+            if (updateFraction is { } f) fill = new RectangleF(track.X, track.Y, Math.Max(lh, track.Width * (float)Math.Clamp(f, 0, 1)), lh);
+            else
+            {
+                float seg = track.Width / 3, t = (1 - MathF.Cos(updatePhase * MathF.PI)) / 2;
+                float x = track.X - seg + (track.Width + seg) * t;
+                float l = Math.Max(track.X, x), r = Math.Min(track.Right, x + seg);
+                fill = new RectangleF(l, track.Y, Math.Max(0, r - l), lh);
+            }
+            if (rtl) fill.X = track.Right - (fill.X - track.X) - fill.Width;
+            if (fill.Width >= 1)
+            {
+                using var fb = new SolidBrush(downC);
+                using var fp = Art.RoundRect(fill, lh / 2);
+                g.FillPath(fb, fp);
+            }
         }
         return bmp;
     }
