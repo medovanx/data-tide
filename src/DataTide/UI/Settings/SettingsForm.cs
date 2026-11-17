@@ -43,8 +43,11 @@ sealed class SettingsForm : Form
     // Updates
     readonly ToggleSwitch tglAutoCheck = new(), tglAutoInstall = new();
     readonly IconButton btnCheck = Btn();
+    /// <summary>Takes the Check now button's place while an update is checked for or installed.</summary>
+    readonly ProgressLine updateBar = new() { Width = 200, Visible = false };
     readonly IconButton btnGitHub = new() { Width = 150, Height = 32, Glyph = Art.IconOpen }, btnNotes = new() { Width = 150, Height = 32, Glyph = Art.IconDocument };
-    readonly Label lblUpdate = new() { AutoSize = true, Tag = "dim", MaximumSize = new Size(440, 0) };
+    /// <summary>Fixed to the button height and centred, so the status lines up with Check now and the progress bar.</summary>
+    readonly Label lblUpdate = new() { AutoSize = false, Size = new Size(440, 32), TextAlign = ContentAlignment.MiddleLeft, AutoEllipsis = true, Tag = "dim" };
 
     readonly Button btnSave = new() { Size = new Size(110, 34) }, btnCancel = new() { Size = new Size(110, 34) };
     readonly List<(string glyph, string title, Control page)> pages = [];
@@ -375,7 +378,7 @@ sealed class SettingsForm : Form
             version,
             Row(L.T("AutoCheck"), tglAutoCheck),
             Row(L.T("AutoInstall"), tglAutoInstall),
-            Flow(btnCheck, lblUpdate),
+            Flow(btnCheck, updateBar, lblUpdate),
             Flow(btnGitHub, btnNotes)));
         btnGitHub.Text = L.T("GitHubRepo");
         btnNotes.Text = L.T("ReleaseNotes");
@@ -385,11 +388,23 @@ sealed class SettingsForm : Form
         tglAutoCheck.CheckedChanged += (_, _) => SyncEnabled();
         btnCheck.Click += async (_, _) =>
         {
-            btnCheck.Enabled = false;
-            lblUpdate.Text = "...";
-            lblUpdate.Text = await app.CheckForUpdatesAsync(userInitiated: true);
-            btnCheck.Enabled = true;
+            string msg = await app.CheckForUpdatesAsync(userInitiated: true);
+            if (!app.UpdateBusy) lblUpdate.Text = msg;
         };
+        updateBar.Theme = t;
+        app.UpdateChanged += SyncUpdate;
+        FormClosed += (_, _) => app.UpdateChanged -= SyncUpdate;
+        if (app.UpdateBusy) SyncUpdate();
+    }
+
+    /// <summary>While busy, a progress bar stands where Check now was and the line beside it says what is happening.</summary>
+    void SyncUpdate()
+    {
+        if (IsDisposed) return;
+        updateBar.Visible = app.UpdateBusy;
+        btnCheck.Visible = !app.UpdateBusy;
+        updateBar.Value = app.UpdateFraction;
+        if (app.UpdateStatus.Length > 0) lblUpdate.Text = app.UpdateStatus;
     }
 
     void SyncEnabled()

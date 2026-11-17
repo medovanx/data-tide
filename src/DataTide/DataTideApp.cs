@@ -401,20 +401,44 @@ sealed class DataTideApp : ApplicationContext
     Updater.Release? pendingUpdate;
     bool installing;
 
+    /// <summary>True while checking for or installing an update, so the Updates page can show progress.</summary>
+    public bool UpdateBusy { get; private set; }
+    /// <summary>0 to 1 while downloading, null when the end isn't known (checking, verifying).</summary>
+    public double? UpdateFraction { get; private set; }
+    /// <summary>What the update is doing now, or its last result.</summary>
+    public string UpdateStatus { get; private set; } = "";
+    public event Action? UpdateChanged;
+
+    /// <summary>For --shots: shows an update in progress without downloading anything.</summary>
+    public void DemoUpdate(bool busy, double? fraction, string status) => SetUpdate(busy, fraction, status);
+
+    void SetUpdate(bool busy, double? fraction, string status)
+    {
+        UpdateBusy = busy; UpdateFraction = fraction; UpdateStatus = status;
+        UpdateChanged?.Invoke();
+    }
+
     /// <summary>Checks GitHub; installs automatically when allowed. Returns a status line.</summary>
     public async Task<string> CheckForUpdatesAsync(bool userInitiated)
     {
         if (!userInitiated && !S.AutoCheckUpdates) return "";
+        if (installing) return UpdateStatus;
         Updater.Release? rel;
+        if (userInitiated) SetUpdate(true, null, L.T("CheckingUpdates"));
         try { rel = await Updater.CheckAsync(); }
         catch (Exception ex)
         {
             Log.Error(ex);
+            if (userInitiated) SetUpdate(false, null, L.T("UpdateCheckFailed"));
             return L.T("UpdateCheckFailed");
         }
         S.LastUpdateCheckUtc = DateTime.UtcNow;
         S.Save();
-        if (rel == null) return L.F("UpToDate", Updater.CurrentText);
+        if (rel == null)
+        {
+            if (userInitiated) SetUpdate(false, null, L.F("UpToDate", Updater.CurrentText));
+            return L.F("UpToDate", Updater.CurrentText);
+        }
 
         pendingUpdate = rel;
         string ver = rel.Version.ToString(3);
@@ -424,6 +448,7 @@ sealed class DataTideApp : ApplicationContext
             return L.F("Updating", ver);
         }
         Toasts.Show(L.T("AppName"), L.F("UpdateAvailable", ver));
+        SetUpdate(false, null, L.F("UpdateAvailable", ver));
         return L.F("UpdateAvailable", ver);
     }
 
@@ -431,14 +456,28 @@ sealed class DataTideApp : ApplicationContext
     {
         if (installing) return;
         installing = true;
-        Toasts.Show(L.T("AppName"), L.F("Updating", rel.Version.ToString(3)));
+        string ver = rel.Version.ToString(3);
+        Toasts.Show(L.T("AppName"), L.F("Updating", ver));
+        SetUpdate(true, 0, L.F("Updating", ver));
         SaveLogs();
-        if (await Updater.InstallAsync(rel))
+        // Progress<T> made here posts its reports back to the UI thread.
+        var progress = new Progress<Updater.Progress>(p =>
         {
+            if (!installing) return;
+            if (p.Verifying) SetUpdate(true, null, L.T("UpdateVerifying"));
+            else if (p.Total > 0)
+                SetUpdate(true, (double)p.Done / p.Total,
+                    L.F("UpdateDownloading", ver, L.Ltr($"{100.0 * p.Done / p.Total:0}%  {ByteFormat.Size(p.Done)} / {ByteFormat.Size(p.Total)}")));
+            else SetUpdate(true, null, L.F("UpdateDownloading", ver, L.Ltr(ByteFormat.Size(p.Done))));
+        });
+        if (await Updater.InstallAsync(rel, progress))
+        {
+            SetUpdate(true, 1, L.F("UpdateRestarting", ver));
             Exit();
             return;
         }
         installing = false;
+        SetUpdate(false, null, L.T("UpdateFailed"));
         Toasts.Show(L.T("AppName"), L.T("UpdateFailed"));
         Updater.OpenPage(rel.PageUrl);
     }

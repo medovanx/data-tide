@@ -3,6 +3,11 @@
 All notable changes to Data Tide are listed here.
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and versions follow [Semantic Versioning](https://semver.org/).
 
+## [1.3.1] - 2026-11-17
+
+### Changed
+- Updating shows its progress: on the Updates page a bar takes the place of Check now while it checks, downloads (with percent and size), verifies and restarts.
+
 ## [1.3.0] - 2026-11-17
 
 ### Added
@@ -82,6 +87,7 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and 
 - A small amber dot on the widget replaces the outline while limits are active.
 - One-click driver install: downloads the official Windows Packet Filter installer from NT Kernel's GitHub release, checks its SHA-256 and runs it.
 
+[1.3.1]: https://github.com/medovanx/data-tide/releases/tag/v1.3.1
 [1.3.0]: https://github.com/medovanx/data-tide/releases/tag/v1.3.0
 [1.2.0]: https://github.com/medovanx/data-tide/releases/tag/v1.2.0
 [1.1.1]: https://github.com/medovanx/data-tide/releases/tag/v1.1.1

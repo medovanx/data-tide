@@ -82,6 +82,12 @@ static class Shots
                 settings.ShowPage(i);
                 SaveClient(settings, Path.Combine(dir, $"settings-{i}-{lang}.png"));
             }
+            settings.ShowPage(SettingsForm.UpdatesPage);
+            app.DemoUpdate(true, 0.42, L.F("UpdateDownloading", "9.9.9", L.Ltr($"42%  {ByteFormat.Size(34_400_000)} / {ByteFormat.Size(81_920_000)}")));
+            SaveClient(settings, Path.Combine(dir, $"settings-updating-{lang}.png"));
+            app.DemoUpdate(true, null, L.T("UpdateVerifying"));
+            SaveClient(settings, Path.Combine(dir, $"settings-verifying-{lang}.png"));
+            app.DemoUpdate(false, null, "");
             settings.Close();
 
             var (from, to) = UsageReport.Resolve(ReportRange.Last30Days, today);
