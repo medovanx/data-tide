@@ -206,10 +206,13 @@ sealed class DataTideApp : ApplicationContext
             last is double ms ? $"{ms:0}" : null, detail, PingQuality(last, loss));
     }
 
-    /// <summary>Green for a good ping, amber for so-so or any loss, red for bad, heavy loss or no reply.</summary>
+    /// <summary>
+    /// Follows the latest round trip: green under 80 ms, amber up to 150 ms, red above or with no reply.
+    /// Loss over the last minute only warns when it is heavy: amber from 10%, red from 25%.
+    /// </summary>
     public static Color PingQuality(double? last, double loss) =>
-        last == null || loss >= 10 || last >= 150 ? Color.FromArgb(232, 72, 85)
-        : last >= 80 || loss > 0 ? Art.UpGlow
+        last == null || last >= 150 || loss >= 25 ? Color.FromArgb(232, 72, 85)
+        : last >= 80 || loss >= 10 ? Art.UpGlow
         : Color.FromArgb(52, 199, 120);
 
     // ---------- windows ----------

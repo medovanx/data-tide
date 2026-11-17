@@ -3,6 +3,11 @@
 All notable changes to Data Tide are listed here.
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and versions follow [Semantic Versioning](https://semver.org/).
 
+## [1.5.1] - 2026-11-17
+
+### Changed
+- The ping dot follows the current round trip (green under 80 ms, amber up to 150 ms, red above or with no reply). Lost pings only change it when loss is heavy: amber from 10% over the last minute, red from 25%. One dropped ping no longer turns a good ping amber for a minute.
+
 ## [1.5.0] - 2026-11-17
 
 ### Added
@@ -127,6 +132,7 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and 
 - A small amber dot on the widget replaces the outline while limits are active.
 - One-click driver install: downloads the official Windows Packet Filter installer from NT Kernel's GitHub release, checks its SHA-256 and runs it.
 
+[1.5.1]: https://github.com/medovanx/data-tide/releases/tag/v1.5.1
 [1.5.0]: https://github.com/medovanx/data-tide/releases/tag/v1.5.0
 [1.4.1]: https://github.com/medovanx/data-tide/releases/tag/v1.4.1
 [1.4.0]: https://github.com/medovanx/data-tide/releases/tag/v1.4.0
