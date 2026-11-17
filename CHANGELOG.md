@@ -3,6 +3,11 @@
 All notable changes to Data Tide are listed here.
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and versions follow [Semantic Versioning](https://semver.org/).
 
+## [1.5.2] - 2026-11-17
+
+### Fixed
+- Sharper text in the usage report window: it now uses ClearType and stays on the pixel grid, like the rest of Windows. Saved PNGs and PDFs keep their smooth grey text.
+
 ## [1.5.1] - 2026-11-17
 
 ### Changed
@@ -132,6 +137,7 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and 
 - A small amber dot on the widget replaces the outline while limits are active.
 - One-click driver install: downloads the official Windows Packet Filter installer from NT Kernel's GitHub release, checks its SHA-256 and runs it.
 
+[1.5.2]: https://github.com/medovanx/data-tide/releases/tag/v1.5.2
 [1.5.1]: https://github.com/medovanx/data-tide/releases/tag/v1.5.1
 [1.5.0]: https://github.com/medovanx/data-tide/releases/tag/v1.5.0
 [1.4.1]: https://github.com/medovanx/data-tide/releases/tag/v1.4.1

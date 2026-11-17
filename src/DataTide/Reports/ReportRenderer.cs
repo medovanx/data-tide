@@ -50,17 +50,20 @@ sealed class ReportRenderer
     /// <summary>x of a span measured from the start edge (left in English, right in Arabic).</summary>
     float X(float fromStart, float w) => rtl ? width - Margin - fromStart - w : Margin + fromStart;
 
-    static void Prepare(Graphics g)
+    static void Prepare(Graphics g, bool screen = false)
     {
         g.SmoothingMode = SmoothingMode.AntiAlias;
-        g.TextRenderingHint = TextRenderingHint.AntiAliasGridFit;
-        g.PixelOffsetMode = PixelOffsetMode.HighQuality;
+        // On screen the page sits on an opaque window, so ClearType gives the same crisp text as the rest of Windows.
+        // Files keep grey antialiasing: ClearType's colour fringes look wrong once an image is scaled or viewed elsewhere.
+        g.TextRenderingHint = screen ? TextRenderingHint.ClearTypeGridFit : TextRenderingHint.AntiAliasGridFit;
+        // The half pixel shift smooths shapes, but it also moves every glyph off the pixel grid and blurs text.
+        g.PixelOffsetMode = PixelOffsetMode.None;
     }
 
     /// <summary>Draws every block one under the other (screen and PNG).</summary>
-    public void DrawAll(Graphics g, int top = 0)
+    public void DrawAll(Graphics g, int top = 0, bool screen = false)
     {
-        Prepare(g);
+        Prepare(g, screen);
         int y = top;
         foreach (var b in Blocks) { b.Draw(g, y); y += b.Height; }
     }

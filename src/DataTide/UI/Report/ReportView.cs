@@ -32,6 +32,6 @@ sealed class ReportView : Control
     protected override void OnPaint(PaintEventArgs e)
     {
         e.Graphics.Clear(Theme.Window);
-        renderer?.DrawAll(e.Graphics);
+        renderer?.DrawAll(e.Graphics, screen: true);
     }
 }
