@@ -3,6 +3,12 @@
 All notable changes to Data Tide are listed here.
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and versions follow [Semantic Versioning](https://semver.org/).
 
+## [1.3.3] - 2026-11-17
+
+### Changed
+- The widget's right-click menu (and the limit row menu in Settings) are drawn in the app's style: theme colours, rounded corners and hover rows, an icon per item and an accent check.
+- While an update is checked for or installed, a thin progress line runs along the bottom of the widget, and the right-click menu shows how far it is in place of Check for updates. Closing Settings does not stop an update.
+
 ## [1.3.2] - 2026-11-17
 
 ### Added
@@ -92,6 +98,7 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and 
 - A small amber dot on the widget replaces the outline while limits are active.
 - One-click driver install: downloads the official Windows Packet Filter installer from NT Kernel's GitHub release, checks its SHA-256 and runs it.
 
+[1.3.3]: https://github.com/medovanx/data-tide/releases/tag/v1.3.3
 [1.3.2]: https://github.com/medovanx/data-tide/releases/tag/v1.3.2
 [1.3.1]: https://github.com/medovanx/data-tide/releases/tag/v1.3.1
 [1.3.0]: https://github.com/medovanx/data-tide/releases/tag/v1.3.0

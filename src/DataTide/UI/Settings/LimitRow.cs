@@ -97,7 +97,7 @@ sealed class LimitRow : TableLayoutPanel
 
     void ShowMenu()
     {
-        var menu = new ContextMenuStrip { Renderer = new ThemedMenuRenderer(t), ShowImageMargin = false, RightToLeft = RightToLeft };
+        var menu = new ContextMenuStrip { ShowImageMargin = false, RightToLeft = RightToLeft };
         var block = new ToolStripMenuItem(Rule.Block ? L.T("LimitInstead") : L.T("BlockAll"));
         block.Click += (_, _) => { Rule.Block = !Rule.Block; SyncState(); };
         var pause = new ToolStripMenuItem(Rule.Enabled ? L.T("PauseRule") : L.T("ResumeRule"));
@@ -106,6 +106,7 @@ sealed class LimitRow : TableLayoutPanel
         remove.Click += (_, _) => Removed?.Invoke(this);
         block.ForeColor = pause.ForeColor = t.Text;
         menu.Items.AddRange([block, pause, new ToolStripSeparator(), remove]);
+        ThemedMenuRenderer.Style(menu, t);
         menu.Closed += (_, _) => BeginInvoke(menu.Dispose);
         bool rtl = RightToLeft == RightToLeft.Yes;
         menu.Show(btnMore, new Point(rtl ? 0 : btnMore.Width, btnMore.Height), rtl ? ToolStripDropDownDirection.BelowRight : ToolStripDropDownDirection.BelowLeft);

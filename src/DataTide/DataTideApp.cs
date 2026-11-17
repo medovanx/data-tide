@@ -24,7 +24,7 @@ sealed class DataTideApp : ApplicationContext
     readonly InterfaceSampler sampler = new();
     readonly HostWindow host;
     readonly TaskbarWidget widget = new();
-    readonly ContextMenuStrip menu = new();
+    ContextMenuStrip? menu;
     readonly System.Windows.Forms.Timer timer = new() { Interval = 1000 };
     readonly System.Windows.Forms.Timer updateTimer = new() { Interval = 45_000 };
     TrafficFlyout? flyout;
@@ -65,7 +65,6 @@ sealed class DataTideApp : ApplicationContext
         if (ledger == null && Ledger.Remove(Monitor.FilterIds) > 0) UsageStore.Save(Ledger);
 
         host = new HostWindow(this);
-        menu.Opening += (_, e) => { BuildMenu(); e.Cancel = false; };
         // No tray icon: the widget is the app's surface (click, hover, right-click), messages go out as Windows notifications.
         if (Headless) return;
         Toasts.Register();
@@ -81,7 +80,11 @@ sealed class DataTideApp : ApplicationContext
         widget.RightClicked += () =>
         {
             Native.SetForegroundWindow(host.Handle);
-            menu.Show(Cursor.Position);
+            // A fresh menu each time: it reflects the current language, theme and update state.
+            var m = BuildMenu(Native.SystemDark());
+            menu = m;
+            m.Closed += (_, _) => host.BeginInvoke(() => { m.Dispose(); if (menu == m) menu = null; });
+            m.Show(Cursor.Position);
         };
 
         SystemEvents.PowerModeChanged += (_, e) => { if (e.Mode == PowerModes.Resume) host.BeginInvoke(sampler.Reset); };
@@ -415,6 +418,7 @@ sealed class DataTideApp : ApplicationContext
     void SetUpdate(bool busy, double? fraction, string status)
     {
         UpdateBusy = busy; UpdateFraction = fraction; UpdateStatus = status;
+        if (!Headless) widget.SetUpdate(busy, fraction);
         UpdateChanged?.Invoke();
     }
 
@@ -482,16 +486,27 @@ sealed class DataTideApp : ApplicationContext
         Updater.OpenPage(rel.PageUrl);
     }
 
-    void BuildMenu()
+    /// <summary>The widget's right-click menu, styled like the hover card: theme surface, rounded rows and corners, icons.</summary>
+    public ContextMenuStrip BuildMenu(bool dark)
     {
-        menu.Items.Clear();
-        menu.RightToLeft = L.Ar ? RightToLeft.Yes : RightToLeft.No;
-        menu.Items.Add(L.T("ShowTraffic"), null, (_, _) => ShowFlyout()).Font = new Font(menu.Font, FontStyle.Bold);
-        menu.Items.Add(L.T("UsageReport"), null, (_, _) => ShowReport());
-        menu.Items.Add(L.T("SpeedTest"), null, (_, _) => ShowSpeedTest());
-        menu.Items.Add(L.T("SpeedLimits"), null, (_, _) => ShowSettings(SettingsForm.LimitsPage));
+        var t = new Theme(dark);
+        var m = new ContextMenuStrip { RightToLeft = L.Ar ? RightToLeft.Yes : RightToLeft.No };
+        ToolStripMenuItem Item(string text, string? glyph, Action? click = null)
+        {
+            var it = new ToolStripMenuItem(text) { Tag = glyph == null ? null : new ThemedMenuRenderer.MenuGlyph(glyph) };
+            if (click != null) it.Click += (_, _) => click();
+            return it;
+        }
 
-        var ifMenu = new ToolStripMenuItem(L.T("Interface"));
+        var show = Item(L.T("ShowTraffic"), "\uE8AB", ShowFlyout);
+        show.Font = new Font("Segoe UI Semibold", 9.5f);
+        m.Items.Add(show);
+        m.Items.Add(Item(L.T("UsageReport"), Art.IconChart, ShowReport));
+        m.Items.Add(Item(L.T("SpeedTest"), Art.IconSpeed, ShowSpeedTest));
+        m.Items.Add(Item(L.T("SpeedLimits"), Art.IconLimit, () => ShowSettings(SettingsForm.LimitsPage)));
+        m.Items.Add(new ToolStripSeparator());
+
+        var ifMenu = Item(L.T("Interface"), Art.IconNetwork);
         void AddIf(string id, string text)
         {
             var item = new ToolStripMenuItem(text) { Checked = S.InterfaceId == id };
@@ -501,10 +516,10 @@ sealed class DataTideApp : ApplicationContext
         AddIf(AppSettings.AutoInterface, L.T("AutoInterface"));
         ifMenu.DropDownItems.Add(new ToolStripSeparator());
         foreach (var (id, name, _, up) in Monitor.All().Where(i => i.up)) AddIf(id, name);
-        menu.Items.Add(ifMenu);
+        m.Items.Add(ifMenu);
 
         // Language: applied at once; open windows close so they don't keep the old one (Settings would save it back).
-        var langMenu = new ToolStripMenuItem(L.T("Language"));
+        var langMenu = Item(L.T("Language"), "\uE774");
         foreach (var (code, name) in new[] { ("en", "English"), ("ar", "العربية") })
         {
             var item = new ToolStripMenuItem(name) { Checked = S.Language == code };
@@ -519,20 +534,25 @@ sealed class DataTideApp : ApplicationContext
             };
             langMenu.DropDownItems.Add(item);
         }
-        menu.Items.Add(langMenu);
+        m.Items.Add(langMenu);
 
-        menu.Items.Add(new ToolStripSeparator());
-        menu.Items.Add(L.T("Settings"), null, (_, _) => ShowSettings());
-        menu.Items.Add(L.T("CheckForUpdates"), null, async (_, _) =>
+        m.Items.Add(new ToolStripSeparator());
+        m.Items.Add(Item(L.T("Settings"), Art.IconSettings, () => ShowSettings()));
+        // While an update is checked for or installed, the item says how far it is instead (the widget shows a bar too).
+        if (UpdateBusy) m.Items.Add(new ToolStripMenuItem(UpdateStatus) { Enabled = false, Tag = new ThemedMenuRenderer.MenuGlyph(Art.IconUpdate) });
+        else m.Items.Add(Item(L.T("CheckForUpdates"), Art.IconUpdate, async () =>
         {
             var msg = await CheckForUpdatesAsync(userInitiated: true);
             if (!installing) Toasts.Show(L.T("AppName"), msg);
-        });
+        }));
         var startup = new ToolStripMenuItem(L.T("StartWithWindows")) { Checked = AppSettings.StartWithWindows };
         startup.Click += (_, _) => { try { AppSettings.StartWithWindows = !startup.Checked; } catch { } };
-        menu.Items.Add(startup);
-        menu.Items.Add(new ToolStripSeparator());
-        menu.Items.Add(L.T("Exit"), null, (_, _) => Exit());
+        m.Items.Add(startup);
+        m.Items.Add(new ToolStripSeparator());
+        m.Items.Add(Item(L.T("Exit"), "\uE7E8", Exit));
+
+        ThemedMenuRenderer.Style(m, t);
+        return m;
     }
 
     public const string ShowFlyoutMessage = "DataTide.ShowFlyout";

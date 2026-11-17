@@ -24,6 +24,8 @@ static class Shots
 
             WidgetStrip(Path.Combine(dir, $"widget-{lang}.png"), app.Rate(app.Up), app.Rate(app.Down), lang == "ar");
             WidgetStrip(Path.Combine(dir, $"widget-limited-{lang}.png"), app.Rate(app.Up), app.Rate(app.Down), lang == "ar", limited: true);
+            WidgetStrip(Path.Combine(dir, $"widget-updating-{lang}.png"), app.Rate(app.Up), app.Rate(app.Down), lang == "ar", updating: true, fraction: 0.42);
+            WidgetStrip(Path.Combine(dir, $"widget-checking-{lang}.png"), app.Rate(app.Up), app.Rate(app.Down), lang == "ar", updating: true);
             app.RefreshTotals();
             foreach (var dk in new[] { true, false })
             {
@@ -69,6 +71,17 @@ static class Shots
                 flyout.Dispose();
             }
 
+            foreach (var dk in new[] { true, false })
+            {
+                using var m = app.BuildMenu(dk);
+                m.Show(new Point(-4000, -4000));
+                m.Items[2].Select();
+                using var mb = new Bitmap(m.Width, m.Height);
+                m.DrawToBitmap(mb, new Rectangle(Point.Empty, m.Size));
+                mb.Save(Path.Combine(dir, $"menu-{lang}-{(dk ? "dark" : "light")}.png"), ImageFormat.Png);
+                m.Close();
+            }
+
             var speed = new SpeedTestForm(app) { StartPosition = FormStartPosition.Manual, Location = new Point(-4000, -4000) };
             speed.Show();
             speed.ShowForShot(new SpeedTestResult(DateTime.Now.AddMinutes(-3), 18, 2.4, 94.6e6, 38.2e6));
@@ -111,11 +124,11 @@ static class Shots
     }
 
     /// <summary>The widget on a dark taskbar-coloured strip, at 150% scale for a crisp README image.</summary>
-    static void WidgetStrip(string path, string up, string down, bool rtl, bool limited = false)
+    static void WidgetStrip(string path, string up, string down, bool rtl, bool limited = false, bool updating = false, double? fraction = null)
     {
         const float s = 1.5f;
         int h = (int)(48 * s);
-        using var widget = TaskbarWidget.Paint(up, down, false, rtl, limited, true, s, h);
+        using var widget = TaskbarWidget.Paint(up, down, false, rtl, limited, true, s, h, updating, fraction);
         using var strip = new Bitmap(widget.Width + (int)(40 * s), h);
         using (var g = Graphics.FromImage(strip))
         {

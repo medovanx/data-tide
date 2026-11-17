@@ -85,6 +85,32 @@ sealed class TaskbarWidget : NativeWindow
 
     public void Invalidate() { if (Alive) { Render(); Place(); } }
 
+    // ---------- update progress ----------
+
+    bool updating;
+    double? updateFraction;
+    float updatePhase = 0.4f;
+    System.Windows.Forms.Timer? updateAnim;
+
+    /// <summary>
+    /// Shows a thin progress line along the bottom of the pill while an update is checked for or installed,
+    /// so it is visible without any window open. A null fraction slides (checking, verifying).
+    /// </summary>
+    public void SetUpdate(bool busy, double? fraction)
+    {
+        if (busy == updating && fraction == updateFraction) return;
+        updating = busy;
+        updateFraction = fraction;
+        bool animate = busy && fraction == null;
+        if (animate && updateAnim == null)
+        {
+            updateAnim = new System.Windows.Forms.Timer { Interval = 33 };
+            updateAnim.Tick += (_, _) => { updatePhase = (updatePhase + 0.025f) % 1f; if (Alive) Render(); };
+        }
+        if (updateAnim != null) updateAnim.Enabled = animate;
+        if (Alive) Render();
+    }
+
     float Scale => tray != IntPtr.Zero && GetDpiForWindow(tray) is var d and > 0 ? d / 96f : 1f;
 
     void Place()
@@ -212,7 +238,7 @@ sealed class TaskbarWidget : NativeWindow
     void Render()
     {
         if (!GetWindowRect(tray, out var tr)) return;
-        using var bmp = Paint(up, down, hover, rtl, limited, SystemDark(), Scale, tr.Height);
+        using var bmp = Paint(up, down, hover, rtl, limited, SystemDark(), Scale, tr.Height, updating, updateFraction, updatePhase);
         size = bmp.Size;
         var screen = GetDC(IntPtr.Zero);
         var mem = CreateCompatibleDC(screen);
@@ -238,7 +264,8 @@ sealed class TaskbarWidget : NativeWindow
     /// Draws the widget: two rows, upload (amber arrow) over download (cyan arrow). The width is fixed by the
     /// widest possible text, so it never jitters as speeds change.
     /// </summary>
-    public static Bitmap Paint(string up, string down, bool hover, bool rtl, bool limited, bool dark, float s, int h)
+    public static Bitmap Paint(string up, string down, bool hover, bool rtl, bool limited, bool dark, float s, int h,
+        bool updating = false, double? updateFraction = null, float updatePhase = 0.4f)
     {
         using var font = new Font("Segoe UI Semibold", 13.5f * s, GraphicsUnit.Pixel);
         float widest;
@@ -278,6 +305,30 @@ sealed class TaskbarWidget : NativeWindow
                     g.FillEllipse(ring, dx - s, dy - s, d + 2 * s, d + 2 * s);
                     using var dot = new SolidBrush(Art.UpGlow);
                     g.FillEllipse(dot, dx, dy, d, d);
+                }
+                if (updating)
+                {
+                    // Updating: a thin accent line just inside the bottom edge, filling as it downloads.
+                    float lh = 2f * s, inset = 7 * s;
+                    var track = new RectangleF(box.Left + inset, box.Bottom - lh - 1.5f * s, box.Width - inset * 2, lh);
+                    using (var tb = new SolidBrush(Color.FromArgb(dark ? 50 : 40, dark ? Color.White : Art.SeaDark)))
+                    using (var tp = Art.RoundRect(track, lh / 2)) g.FillPath(tb, tp);
+                    RectangleF fill;
+                    if (updateFraction is { } f) fill = new RectangleF(track.X, track.Y, Math.Max(lh, track.Width * (float)Math.Clamp(f, 0, 1)), lh);
+                    else
+                    {
+                        float seg = track.Width / 3, t = (1 - MathF.Cos(updatePhase * MathF.PI)) / 2;
+                        float x = track.X - seg + (track.Width + seg) * t;
+                        float l = Math.Max(track.X, x), r = Math.Min(track.Right, x + seg);
+                        fill = new RectangleF(l, track.Y, Math.Max(0, r - l), lh);
+                    }
+                    if (rtl) fill.X = track.Right - (fill.X - track.X) - fill.Width;
+                    if (fill.Width >= 1)
+                    {
+                        using var fb = new SolidBrush(dark ? Art.DownGlow : Color.FromArgb(0, 118, 180));
+                        using var fp = Art.RoundRect(fill, lh / 2);
+                        g.FillPath(fb, fp);
+                    }
                 }
             }
 
