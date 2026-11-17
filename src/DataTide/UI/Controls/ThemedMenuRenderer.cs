@@ -10,8 +10,8 @@ namespace DataTide.UI.Controls;
 /// </summary>
 sealed class ThemedMenuRenderer(Theme t) : ToolStripRenderer
 {
-    /// <summary>Put in an item's Tag to draw this icon-font glyph in the image margin.</summary>
-    public sealed record MenuGlyph(string Glyph, Color? Color = null);
+    /// <summary>Put in an item's Tag to draw this icon-font glyph, or this picture (in full colour), in the image margin.</summary>
+    public sealed record MenuGlyph(string Glyph, Color? Color = null, Image? Picture = null);
 
     static readonly Color Danger = Color.FromArgb(232, 72, 85);
     readonly Dictionary<ToolStrip, Rectangle> margins = [];
@@ -71,11 +71,17 @@ sealed class ThemedMenuRenderer(Theme t) : ToolStripRenderer
             var box = new RectangleF(rtl ? it.Width - w : 0, 0, w, it.Height);
             // Up a little: text is centred on its line box, whose visual middle sits above the box middle.
             box.Offset(rtl ? -2 * s : 2 * s, -TextLift(s));
-            Art.GlyphCentered(g, mg.Glyph, 14 * s, box, !it.Enabled ? Color.FromArgb(120, t.Dim) : mg.Color ?? t.Dim);
+            if (mg.Picture is { } pic)
+            {
+                float z = 16 * s;
+                g.InterpolationMode = InterpolationMode.HighQualityBicubic;
+                g.DrawImage(pic, new RectangleF(box.X + (box.Width - z) / 2, box.Y + (box.Height - z) / 2, z, z));
+            }
+            else Art.GlyphCentered(g, mg.Glyph, 14 * s, box, !it.Enabled ? Color.FromArgb(120, t.Dim) : mg.Color ?? t.Dim);
         }
     }
 
-    static float TextLift(float s) => 1.5f * s;
+    static float TextLift(float s) => 0f;
 
     protected override void OnRenderItemCheck(ToolStripItemImageRenderEventArgs e)
     {
@@ -88,6 +94,12 @@ sealed class ThemedMenuRenderer(Theme t) : ToolStripRenderer
         var it = e.Item;
         bool danger = it.ForeColor.ToArgb() == Danger.ToArgb();
         e.TextColor = !it.Enabled ? t.Dim : danger ? Danger : it is ToolStripMenuItem { Checked: true } ? t.Accent : t.Text;
+        // Centred on the whole row: the stock layout puts menu text about 2 px above the middle, which made the
+        // icons look low and the separators sit closer to the row below.
+        var r = e.TextRectangle;
+        float s = it.Owner?.DeviceDpi / 96f ?? 1f;
+        e.TextRectangle = new Rectangle(r.X, -(int)Math.Round(s), r.Width, it.Height); // 1 px up: the line box carries the descent
+        e.TextFormat = (e.TextFormat & ~(TextFormatFlags.Top | TextFormatFlags.Bottom)) | TextFormatFlags.VerticalCenter;
         base.OnRenderItemText(e);
     }
 

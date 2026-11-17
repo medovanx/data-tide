@@ -486,6 +486,10 @@ sealed class DataTideApp : ApplicationContext
         Updater.OpenPage(rel.PageUrl);
     }
 
+    /// <summary>The app icon for the menu header, taken from the icon's 32 px frame so it stays sharp when scaled.</summary>
+    Bitmap MenuIcon => menuIcon ??= new Icon(AppIcon, 32, 32).ToBitmap();
+    Bitmap? menuIcon;
+
     /// <summary>The widget's right-click menu, styled like the hover card: theme surface, rounded rows and corners, icons.</summary>
     public ContextMenuStrip BuildMenu(bool dark)
     {
@@ -499,7 +503,7 @@ sealed class DataTideApp : ApplicationContext
         }
 
         // The app and its version as a quiet header.
-        m.Items.Add(new ToolStripMenuItem($"{L.T("AppName")}  {L.Ltr("v" + Updater.CurrentText)}") { Enabled = false, Tag = new ThemedMenuRenderer.MenuGlyph(Art.IconApp) });
+        m.Items.Add(new ToolStripMenuItem($"{L.T("AppName")}  {L.Ltr("v" + Updater.CurrentText)}") { Enabled = false, Tag = new ThemedMenuRenderer.MenuGlyph(Art.IconApp, Picture: MenuIcon) });
         m.Items.Add(new ToolStripSeparator());
         var show = Item(L.T("ShowTraffic"), "\uE8AB", ShowFlyout);
         show.Font = new Font("Segoe UI Semibold", 9.5f);
